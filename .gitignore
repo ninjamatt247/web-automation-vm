@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Logs
+logs/*.log
+*.log
+
+# Data and temporary files
+data/temp/*
+data/archive/*
+!data/temp/.gitkeep
+!data/archive/.gitkeep
+
+# Environment variables
+.env
+.env.local
+config/credentials.json
+config/*.secret
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Playwright
+ms-playwright/
+test-results/
+playwright-report/
