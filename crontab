@@ -1,0 +1,7 @@
+# Web Automation Cron Schedule
+# Format: minute hour day month weekday command
+# Default: Every 2 hours (can be changed via .env SCHEDULE variable)
+
+0 */2 * * * cd /app && /usr/local/bin/python /app/src/main.py >> /var/log/cron.log 2>&1
+
+# Keep a newline at the end
