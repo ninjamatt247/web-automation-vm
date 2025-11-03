@@ -2,15 +2,22 @@
 
 This guide will help you customize the automation for your specific web applications.
 
+## ✅ Current Status
+
+- **Source App (Freed.ai)**: ✅ Configured with credentials and authentication
+- **Target App**: ⏳ Needs configuration
+- **Data Extraction**: ⏳ Needs customization
+- **Data Insertion**: ⏳ Needs customization
+
 ## Overview
 
 The automation system consists of 5 main components that need customization:
 
-1. **Authentication** - Login to both applications
-2. **Navigation** - Navigate to correct sections
-3. **Extraction** - Extract data from source app
-4. **Transformation** - Map data between applications
-5. **Insertion** - Insert data into target app
+1. **✅ Authentication** - Login to both applications (Freed.ai source configured)
+2. **⏳ Navigation** - Navigate to correct sections
+3. **⏳ Extraction** - Extract data from source app
+4. **⏳ Transformation** - Map data between applications
+5. **⏳ Insertion** - Insert data into target app
 
 ## Step-by-Step Customization
 
@@ -19,10 +26,10 @@ The automation system consists of 5 main components that need customization:
 Edit `config/.env`:
 
 ```bash
-# Source Application
-SOURCE_APP_URL=https://your-source-app.com/login
-SOURCE_APP_USERNAME=your_username
-SOURCE_APP_PASSWORD=your_password
+# Source Application (Freed.ai)
+SOURCE_APP_URL=https://secure.getfreed.ai/
+SOURCE_APP_USERNAME=l@livewellbyl.com
+SOURCE_APP_PASSWORD=Newlife2025!
 
 # Target Application
 TARGET_APP_URL=https://your-target-app.com/login
@@ -35,24 +42,23 @@ SCHEDULE="0 */2 * * *"  # Every 2 hours
 
 ### 2. Customize Source Authentication
 
-Edit `src/auth/source_auth.py`:
+**✅ Freed.ai authentication is already configured** with robust selectors that handle modern login forms. The system will automatically try multiple selector patterns:
 
-**Find the login selectors** for your source application:
+- **Email field**: `input[type="email"]`, `input[name="email"]`, or email placeholder inputs
+- **Password field**: `input[type="password"]` or `input[name="password"]`
+- **Submit button**: "Sign in", "Login", or `button[type="submit"]` selectors
+- **Success detection**: Dashboard elements, user menus, or URL changes
 
-1. Open your source application in a browser
-2. Right-click on the username field → Inspect
-3. Note the selector (e.g., `input[name="email"]`, `#username`, etc.)
-4. Repeat for password field and submit button
+If you need to customize further, edit `src/auth/source_auth.py`:
 
 ```python
-# Replace these selectors in source_auth.py
-self.page.wait_for_selector('input[name="username"]')  # ← Your username selector
-self.page.fill('input[name="username"]', self.username)
-self.page.fill('input[name="password"]', self.password)  # ← Your password selector
-self.page.click('button[type="submit"]')  # ← Your submit button selector
+# The code already includes fallback selectors for Freed.ai
+# If you encounter issues, you can inspect the actual selectors:
 
-# Wait for login success - find an element that only appears when logged in
-self.page.wait_for_selector('[data-testid="dashboard"]')  # ← Your logged-in indicator
+1. Open https://secure.getfreed.ai/ in a browser
+2. Right-click on the email field → Inspect
+3. Note the selector and update the email_selector variable
+4. Repeat for password field and submit button
 ```
 
 **Customize navigation**:
@@ -209,8 +215,10 @@ form.login-form input[type="email"]
 
 ### 1. Test Authentication
 
+**✅ Freed.ai authentication is ready to test:**
+
 ```bash
-# Run container in non-headless mode
+# Run container in non-headless mode to test Freed.ai login
 docker-compose run -e HEADLESS=false automation python -c "
 from playwright.sync_api import sync_playwright
 from src.utils.config import get_config
@@ -220,7 +228,10 @@ config = get_config()
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
     auth = SourceAuth(config, browser)
-    auth.login()
+    if auth.login():
+        print('✅ Login successful!')
+    else:
+        print('❌ Login failed - check logs and screenshots')
     input('Press Enter to close...')
     browser.close()
 "
