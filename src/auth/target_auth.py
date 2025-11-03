@@ -1,12 +1,13 @@
-"""Authentication for target web application."""
+"""Authentication for target web application (Osmind EHR)."""
 from playwright.sync_api import Page, Browser, TimeoutError as PlaywrightTimeout
 from src.auth.base_auth import BaseAuth
 from src.utils.logger import logger
 from src.utils.config import AppConfig
+import time
 
 
 class TargetAuth(BaseAuth):
-    """Authentication handler for target application."""
+    """Authentication handler for Osmind EHR."""
 
     def __init__(self, config: AppConfig, browser: Browser):
         """Initialize target authentication."""
@@ -30,26 +31,90 @@ class TargetAuth(BaseAuth):
 
             # Navigate to login page
             self.page.goto(self.url)
-            logger.info("Navigated to target application")
+            logger.info("Navigated to Osmind EHR")
 
-            # TODO: Customize these selectors for your target application
-            # Example selectors - replace with actual selectors from your app
+            time.sleep(2)
 
-            # Wait for login form to load
-            self.page.wait_for_selector('input[name="username"]', timeout=10000)
+            # Find and fill username/email field
+            try:
+                # Try multiple possible selectors for username field
+                username_selector = None
+                for selector in [
+                    'input[type="email"]',
+                    'input[name="email"]',
+                    'input[name="username"]',
+                    'input[id*="email"]',
+                    'input[id*="username"]',
+                    'input[placeholder*="email" i]',
+                    'input[placeholder*="username" i]'
+                ]:
+                    try:
+                        self.page.wait_for_selector(selector, timeout=3000)
+                        username_selector = selector
+                        break
+                    except:
+                        continue
 
-            # Fill in credentials
-            self.page.fill('input[name="username"]', self.username)
-            self.page.fill('input[name="password"]', self.password)
-            logger.info("Credentials filled")
+                if not username_selector:
+                    raise Exception("Could not find username/email input field")
+
+                logger.info(f"Found username field: {username_selector}")
+                self.page.fill(username_selector, self.username)
+
+            except Exception as e:
+                logger.error(f"Failed to fill username: {e}")
+                raise
+
+            # Find and fill password field
+            try:
+                password_selector = 'input[type="password"]'
+                self.page.wait_for_selector(password_selector, timeout=5000)
+                self.page.fill(password_selector, self.password)
+                logger.info("Credentials filled")
+
+            except Exception as e:
+                logger.error(f"Failed to fill password: {e}")
+                raise
 
             # Submit login form
-            self.page.click('button[type="submit"]')
+            try:
+                # Try multiple submit methods
+                try:
+                    self.page.click('button[type="submit"]', timeout=5000)
+                    logger.info("Clicked submit button")
+                except:
+                    try:
+                        self.page.click('button:has-text("Sign in"), button:has-text("Log in")', timeout=5000)
+                        logger.info("Clicked login button by text")
+                    except:
+                        # Press Enter as fallback
+                        self.page.keyboard.press('Enter')
+                        logger.info("Pressed Enter to submit")
+
+            except Exception as e:
+                logger.error(f"Failed to submit form: {e}")
+                raise
 
             # Wait for successful login
-            self.page.wait_for_selector('[data-testid="dashboard"]', timeout=15000)
+            try:
+                # Wait to be redirected away from login page
+                self.page.wait_for_url(lambda url: "login" not in url.lower(), timeout=15000)
+                logger.info("Redirected away from login page")
 
-            logger.info("Successfully logged into target application")
+                time.sleep(2)
+
+                # Verify we're logged in by checking for common dashboard elements
+                try:
+                    self.page.wait_for_selector('[class*="dashboard"], [class*="home"], [role="main"], main', timeout=10000)
+                    logger.info("Dashboard/main content detected")
+                except:
+                    logger.warning("Could not verify dashboard elements, but login redirect occurred")
+
+            except PlaywrightTimeout:
+                logger.error("Timeout waiting for login redirect")
+                raise
+
+            logger.info(f"Successfully logged into Osmind EHR - URL: {self.page.url}")
             return True
 
         except PlaywrightTimeout as e:

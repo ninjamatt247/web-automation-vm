@@ -41,6 +41,15 @@ class AppConfig:
     log_level: str
     log_retention_days: int
 
+    # OpenAI API
+    openai_api_key: str
+    openai_model: str
+    openai_max_tokens: int
+
+    # Data Processing
+    days_to_fetch: int
+    download_individual_files: bool
+
     @classmethod
     def from_env(cls) -> "AppConfig":
         """Load configuration from environment variables."""
@@ -67,7 +76,16 @@ class AppConfig:
 
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
-            log_retention_days=int(os.getenv("LOG_RETENTION_DAYS", "30"))
+            log_retention_days=int(os.getenv("LOG_RETENTION_DAYS", "30")),
+
+            # OpenAI
+            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            openai_max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "4000")),
+
+            # Data Processing
+            days_to_fetch=int(os.getenv("DAYS_TO_FETCH", "1")),
+            download_individual_files=os.getenv("DOWNLOAD_INDIVIDUAL_FILES", "true").lower() == "true"
         )
 
     def validate(self) -> list[str]:
@@ -87,6 +105,9 @@ class AppConfig:
             errors.append("TARGET_APP_USERNAME is required")
         if not self.target_password:
             errors.append("TARGET_APP_PASSWORD is required")
+
+        if not self.openai_api_key:
+            errors.append("OPENAI_API_KEY is required")
 
         return errors
 

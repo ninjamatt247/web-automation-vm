@@ -1,14 +1,23 @@
-# Web Automation VM
+# Web Automation VM: Freed.ai → OpenAI → Osmind EHR
 
-Docker-based automation system for transferring data between two web applications using browser automation.
+Automated system for transferring patient notes from Freed.ai to Osmind EHR with AI-powered cleaning and formatting.
 
-## Features
+## 🎯 What It Does
 
+1. **Logs into Freed.ai** (with Google OAuth support)
+2. **Extracts patient notes** from the last N days
+3. **Processes with OpenAI** to clean and format for EHR compliance
+4. **Logs into Osmind EHR**
+5. **Uploads cleaned notes** automatically
+
+## ✨ Features
+
+- **Google OAuth Support**: Handles Freed.ai's Google authentication flow
+- **AI-Powered Processing**: Uses OpenAI to clean and format clinical notes
 - **Browser Automation**: Playwright-powered web interaction
-- **Scheduled Execution**: Cron-based automated data transfers
-- **Secure Authentication**: Environment-based credential management
-- **Data Transfer**: Forms, files, and tabular data support
-- **Error Handling**: Comprehensive logging and monitoring
+- **Scheduled Execution**: Cron-based automated transfers
+- **Individual File Processing**: Each patient note saved and processed separately
+- **Comprehensive Logging**: Detailed logs with screenshots on errors
 - **Docker Containerized**: Easy deployment and scaling
 
 ## Architecture
@@ -31,31 +40,43 @@ web-automation-vm/
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- GitHub account for repository management
+- Freed.ai account with Google authentication
+- Osmind EHR account
+- OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 
-### Setup
+### Quick Setup
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/web-automation-vm.git
+   git clone https://github.com/ninjamatt247/web-automation-vm.git
    cd web-automation-vm
    ```
 
 2. **Configure credentials**:
    ```bash
    cp config/.env.example config/.env
-   # Edit config/.env with your credentials
+   nano config/.env  # Edit with your actual credentials
    ```
+
+   Required settings:
+   - `SOURCE_APP_USERNAME` - Your Freed.ai email
+   - `SOURCE_APP_PASSWORD` - Your Google password
+   - `TARGET_APP_USERNAME` - Your Osmind username
+   - `TARGET_APP_PASSWORD` - Your Osmind password
+   - `OPENAI_API_KEY` - Your OpenAI API key
 
 3. **Build and run**:
    ```bash
-   docker-compose up -d
+   docker-compose build
+   docker-compose run automation python src/main_workflow.py
    ```
 
 4. **Check logs**:
    ```bash
    docker-compose logs -f
    ```
+
+📖 **For detailed setup instructions**, see [SETUP_GUIDE.md](./SETUP_GUIDE.md)
 
 ## Configuration
 
