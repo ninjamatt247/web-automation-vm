@@ -6,9 +6,14 @@ from dataclasses import dataclass
 from typing import Optional
 
 # Load environment variables
-env_path = Path("/app/config/.env")
-if env_path.exists():
-    load_dotenv(env_path)
+# Try Docker path first, then local path
+docker_env_path = Path("/app/config/.env")
+local_env_path = Path(__file__).parent.parent.parent / "config" / ".env"
+
+if docker_env_path.exists():
+    load_dotenv(docker_env_path)
+elif local_env_path.exists():
+    load_dotenv(local_env_path)
 else:
     load_dotenv()  # Try loading from default location
 

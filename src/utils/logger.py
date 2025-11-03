@@ -19,8 +19,18 @@ logger.add(
     colorize=True
 )
 
+# Determine log directory based on environment
+if Path("/app").exists():
+    # Docker environment
+    log_dir = Path("/app/logs")
+else:
+    # Local environment
+    log_dir = Path(__file__).parent.parent.parent / "logs"
+
+log_dir.mkdir(parents=True, exist_ok=True)
+
 # Add file logger
-log_path = Path("/app/logs/automation.log")
+log_path = log_dir / "automation.log"
 logger.add(
     log_path,
     rotation="500 MB",
@@ -31,7 +41,7 @@ logger.add(
 )
 
 # Add error file logger
-error_log_path = Path("/app/logs/errors.log")
+error_log_path = log_dir / "errors.log"
 logger.add(
     error_log_path,
     rotation="100 MB",

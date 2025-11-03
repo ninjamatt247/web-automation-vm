@@ -75,25 +75,24 @@ class FreedExtractor:
             time.sleep(2)
 
             # Extract patient list using JavaScript
-            # This is a generic approach - may need customization based on actual HTML structure
-            patient_list = self.page.evaluate('''() => {
+            # Updated for Freed.ai Material-UI structure
+            patient_list = self.page.evaluate("""() => {
                 const patients = [];
 
-                // Try to find patient cards/items
-                // Adjust selectors based on actual Freed.ai structure
-                const patientElements = document.querySelectorAll('[class*="patient"], [class*="note"], [class*="visit"], .patient-card, .note-item');
+                // Find all visit/patient items using Material-UI data-testid
+                const patientElements = document.querySelectorAll('[data-testid="visit-item-button"]');
 
                 patientElements.forEach((element, index) => {
-                    // Extract patient name
-                    const nameElement = element.querySelector('[class*="name"], h2, h3, .patient-name, strong');
+                    // Extract patient name from MUI structure
+                    const nameElement = element.querySelector('[data-testid="VisitListItem-patientName"] .MuiListItemText-primary');
                     const name = nameElement ? nameElement.textContent.trim() : `Patient ${index + 1}`;
 
-                    // Extract date
-                    const dateElement = element.querySelector('[class*="date"], time, .visit-date, [class*="time"]');
+                    // Extract date/time from visit-duration
+                    const dateElement = element.querySelector('[data-testid="visit-duration"]');
                     const dateText = dateElement ? dateElement.textContent.trim() : '';
 
-                    // Extract summary/note preview
-                    const summaryElement = element.querySelector('[class*="summary"], [class*="description"], p');
+                    // Extract summary/preview from pulse_body-medium
+                    const summaryElement = element.querySelector('.MuiTypography-pulse_body-medium');
                     const summary = summaryElement ? summaryElement.textContent.trim() : '';
 
                     // Store element index for clicking later
@@ -108,7 +107,7 @@ class FreedExtractor:
                 });
 
                 return patients;
-            }')
+            }""")
 
             logger.info(f"Found {len(patient_list)} potential patient records")
 
@@ -151,11 +150,12 @@ class FreedExtractor:
             logger.error(f"Failed to get patient list: {e}")
             return []
 
-    def extract_patient_note(self, patient_index: int) -> Optional[Dict[str, Any]]:
+    def extract_patient_note(self, patient_index: int, patient_name: str = None) -> Optional[Dict[str, Any]]:
         """Click into a patient and extract the full detailed note.
 
         Args:
             patient_index: Index of the patient element to click
+            patient_name: Patient name from the list (optional, used as fallback)
 
         Returns:
             Dictionary containing patient note data, or None if extraction fails
@@ -171,11 +171,7 @@ class FreedExtractor:
             time.sleep(2)
 
             # Extract the full note from the detail page
-            note_data = self.page.evaluate('''() => {
-                // Extract patient name
-                const nameElement = document.querySelector('h1, h2, [class*="patient-name"], [class*="name"]');
-                const patientName = nameElement ? nameElement.textContent.trim() : 'Unknown Patient';
-
+            note_data = self.page.evaluate("""() => {
                 // Extract date/time
                 const dateElement = document.querySelector('[class*="date"], [class*="time"], time');
                 const visitDate = dateElement ? dateElement.textContent.trim() : '';
@@ -207,13 +203,18 @@ class FreedExtractor:
                 const fullText = mainContent ? mainContent.textContent.trim() : document.body.textContent.trim();
 
                 return {
-                    patient_name: patientName,
                     visit_date: visitDate,
                     sections: sections,
                     full_text: fullText,
                     extracted_at: new Date().toISOString()
                 };
-            }')
+            }""")
+
+            # Use the patient name from the list (more reliable than extracting from detail page)
+            if patient_name:
+                note_data['patient_name'] = patient_name
+            else:
+                note_data['patient_name'] = 'Unknown Patient'
 
             logger.info(f"Successfully extracted note for {note_data['patient_name']}")
 
@@ -259,23 +260,25 @@ class FreedExtractor:
         extracted_records = []
 
         for i, patient in enumerate(patients):
-            logger.info(f"Processing patient {i+1}/{len(patients)}: {patient['name']}")
+            patient_name = patient.get('name', f'Patient {i+1}')
+            logger.info(f"Processing patient {i+1}/{len(patients)}: {patient_name}")
 
             try:
-                note_data = self.extract_patient_note(patient['index'])
+                # Pass the patient name from the list to avoid extraction issues
+                note_data = self.extract_patient_note(patient['index'], patient_name=patient_name)
 
                 if note_data:
                     # Add list info to note data
                     note_data['list_summary'] = patient['summary']
                     extracted_records.append(note_data)
                 else:
-                    logger.warning(f"Failed to extract note for {patient['name']}")
+                    logger.warning(f"Failed to extract note for {patient_name}")
 
                 # Small delay between patients
                 time.sleep(1)
 
             except Exception as e:
-                logger.error(f"Error processing patient {patient['name']}: {e}")
+                logger.error(f"Error processing patient {patient_name}: {e}")
                 continue
 
         logger.info(f"Extraction complete: {len(extracted_records)}/{len(patients)} records extracted")

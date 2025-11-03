@@ -9,12 +9,18 @@ from src.extractors.freed_extractor import FreedExtractor
 from src.inserters.osmind_inserter import OsmindInserter
 from datetime import datetime
 import sys
+import argparse
 from pathlib import Path
 import json
 
 
 def main():
     """Complete automation workflow."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Automated patient notes transfer: Freed.ai → OpenAI → Osmind EHR')
+    parser.add_argument('--days', type=int, default=1, help='Number of days to fetch (default: 1)')
+    args = parser.parse_args()
+
     start_time = datetime.now()
     logger.info("=" * 80)
     logger.info(f"Freed.ai → OpenAI → Osmind EHR Automation")
@@ -23,6 +29,9 @@ def main():
 
     # Load configuration
     config = get_config()
+
+    # Override days_to_fetch with command-line argument
+    config.days_to_fetch = args.days
 
     # Validate configuration
     errors = config.validate()

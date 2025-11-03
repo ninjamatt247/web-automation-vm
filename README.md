@@ -92,7 +92,24 @@ Edit `config/.env` to configure:
 ### Manual Execution
 
 ```bash
-docker-compose exec automation python src/main.py
+# Default: fetch last 1 day
+docker-compose exec automation python src/main_workflow.py
+
+# Fetch last 3 days
+docker-compose exec automation python src/main_workflow.py --days 3
+
+# Fetch last 7 days
+docker-compose exec automation python src/main_workflow.py --days 7
+```
+
+### Local Testing
+
+```bash
+# Test extraction and OpenAI (no Osmind upload)
+python3 test_extraction_and_ai.py --days 1
+
+# Test with last 3 days
+python3 test_extraction_and_ai.py --days 3
 ```
 
 ### View Logs
