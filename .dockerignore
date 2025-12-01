@@ -1,0 +1,93 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation and notes
+*.md
+!README.md
+
+# Python cache and artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test and utility scripts
+*_test*.py
+test_*.py
+fetch_*.py
+browse_*.py
+compare_*.py
+retry_*.py
+inspect_*.py
+find_*.py
+search_*.py
+extract_*.py
+verify_*.py
+review_*.py
+run_*.py
+refresh_*.py
+discover_*.py
+open_*.py
+sync_*.py
+fix_*.py
+monitor_*.sh
+
+# Data files and logs
+data/
+logs/
+*.log
+
+# Environment and secrets
+.env
+.env.*
+config/credentials.json
+config/*.secret
+
+# Playwright
+ms-playwright/
+test-results/
+playwright-report/
+
+# Web app - build artifacts and dependencies (keep source)
+web-app/*/node_modules/
+web-app/*/.next/
+web-app/*/dist/
+web-app/*/__pycache__/
+web-app/*/*.db
+web-app/*/*.log
+web-app/*/.DS_Store
+web-app/frontend-backup/
+
+# Experimental code (keep reviewers)
+src/extractors/*_api_extractor.py
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

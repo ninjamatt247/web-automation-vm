@@ -150,12 +150,13 @@ class FreedExtractor:
             logger.error(f"Failed to get patient list: {e}")
             return []
 
-    def extract_patient_note(self, patient_index: int, patient_name: str = None) -> Optional[Dict[str, Any]]:
+    def extract_patient_note(self, patient_index: int, patient_name: str = None, list_date: str = None) -> Optional[Dict[str, Any]]:
         """Click into a patient and extract the full detailed note.
 
         Args:
             patient_index: Index of the patient element to click
             patient_name: Patient name from the list (optional, used as fallback)
+            list_date: Date extracted from the list view (primary source)
 
         Returns:
             Dictionary containing patient note data, or None if extraction fails
@@ -216,6 +217,31 @@ class FreedExtractor:
             else:
                 note_data['patient_name'] = 'Unknown Patient'
 
+            # Use list date as primary source (most reliable)
+            if list_date:
+                note_data['visit_date'] = list_date
+                logger.info(f"Using list date: {list_date}")
+
+            # Extract visit date from the raw text if not already captured
+            elif not note_data.get('visit_date') and note_data.get('full_text'):
+                # Look for "Saved Oct 30" or similar pattern at the beginning
+                import re
+                from datetime import datetime
+
+                date_match = re.search(r'Saved\s+([A-Za-z]+\s+\d{1,2})', note_data['full_text'])
+                if date_match:
+                    try:
+                        # Parse "Oct 30" and add current year
+                        date_str = date_match.group(1)
+                        current_year = datetime.now().year
+                        full_date_str = f"{date_str} {current_year}"
+                        parsed_date = datetime.strptime(full_date_str, '%b %d %Y')
+                        note_data['visit_date'] = parsed_date.strftime('%m/%d/%Y')
+                        logger.info(f"Extracted visit date: {note_data['visit_date']}")
+                    except Exception as e:
+                        logger.warning(f"Could not parse date '{date_str}': {e}")
+                        note_data['visit_date'] = date_match.group(1)  # Store raw if parsing fails
+
             logger.info(f"Successfully extracted note for {note_data['patient_name']}")
 
             # Go back to list
@@ -261,11 +287,16 @@ class FreedExtractor:
 
         for i, patient in enumerate(patients):
             patient_name = patient.get('name', f'Patient {i+1}')
-            logger.info(f"Processing patient {i+1}/{len(patients)}: {patient_name}")
+            list_date = patient.get('date', '')
+            logger.info(f"Processing patient {i+1}/{len(patients)}: {patient_name} (Date: {list_date})")
 
             try:
-                # Pass the patient name from the list to avoid extraction issues
-                note_data = self.extract_patient_note(patient['index'], patient_name=patient_name)
+                # Pass the patient name AND date from the list to avoid extraction issues
+                note_data = self.extract_patient_note(
+                    patient['index'],
+                    patient_name=patient_name,
+                    list_date=list_date
+                )
 
                 if note_data:
                     # Add list info to note data

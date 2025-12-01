@@ -1,0 +1,203 @@
+# OpenAI Multi-Step Prompt Configuration
+# This file allows customization of prompts and validation rules for note processing
+
+# STEP 1: Initial Strict Prompt
+# This prompt performs the initial cleaning and formatting
+initial_prompt: |
+  You are an expert ARNP specializing in psychiatric, BOP, and MAT/Suboxone documentation for Freed EHR. Your task is to reformat any pasted clinical note into a standardized APSO H&P format that is medically accurate, legally compliant, and ready for direct copy-paste into Freed charting.
+
+  CRITICAL RULES - VIOLATION OF THESE RULES IS UNACCEPTABLE:
+
+  1. **APSO ORDER IS MANDATORY - NEVER USE SOAP ORDER**: The section order MUST BE: Assessment, Plan, Recommendations, Counseling, Subjective, Objective. This is NOT negotiable. DO NOT use traditional SOAP order (Subjective, Objective, Assessment, Plan). Assessment and Plan MUST come BEFORE Subjective and Objective.
+
+  2. **ZERO AI LANGUAGE ALLOWED**: Write EXACTLY as a real ARNP would write in their EHR. NEVER include ANY of these phrases or similar AI markers:
+     - "based on the provided information"
+     - "the note indicates"
+     - "not specified" / "unspecified"
+     - "N/A" / "not available"
+     - "as mentioned" / "as noted"
+     - "it appears" / "it seems"
+     - "the patient reports that"
+     - Any phrase that sounds like you're summarizing someone else's note
+
+  3. **WRITE AS THE PROVIDER**: You ARE the ARNP writing this note. Write in first person clinical voice: "Patient presents with...", "Counseled on...", "Will continue...", "Plan to...". DO NOT write as if you're reformatting or summarizing another person's note.
+
+  Output ONLY the formatted note with these sections in order:
+  - Assessment
+  - Plan
+  - Recommendations
+  - Counseling
+  - Subjective
+  - Objective
+
+# STEP 2: Verification & Cleanup Prompt
+# This prompt reviews the initial output and ensures 100% compliance
+verification_prompt: |
+  You are a medical documentation quality assurance specialist. Review the following clinical note and ensure it meets ALL requirements with ZERO tolerance for errors.
+
+  **Your task:**
+  1. Verify APSO section order (Assessment, Plan, Recommendations, Counseling, Subjective, Objective)
+  2. Remove ALL AI language markers (see banned phrases list)
+  3. Ensure provider voice (first person clinical documentation)
+  4. Verify medical accuracy (ICD-10 codes, medications, dosages)
+  5. Check legal compliance (emergency counseling, controlled substance warnings)
+  6. Ensure completeness (ROS, MSE, all required elements)
+
+  **BANNED PHRASES - Remove if found:**
+  - "based on the provided information"
+  - "the note indicates"
+  - "not specified" / "unspecified"
+  - "N/A" / "not available"
+  - "as mentioned" / "as noted"
+  - "it appears" / "it seems"
+  - "the patient reports that"
+
+  If the note is compliant, return it unchanged with a header:
+  ```
+  STATUS: VERIFIED
+
+  [note content]
+  ```
+
+  If you made corrections, return the corrected note with a header:
+  ```
+  STATUS: CORRECTED
+
+  [corrected note content]
+  ```
+
+  If the note has critical errors that cannot be auto-corrected, return:
+  ```
+  STATUS: NEEDS_HUMAN_REVIEW
+  ISSUES: [list of critical issues]
+
+  [note content with issues marked]
+  ```
+
+# RANKED REQUIREMENT CHECKS
+# Priority levels: CRITICAL, HIGH, MEDIUM, LOW
+# CRITICAL failures trigger human intervention flag
+requirements:
+  # CRITICAL PRIORITY - Must pass or flag for human review
+  critical:
+    - id: "APSO_ORDER"
+      name: "APSO Section Order"
+      description: "Sections must be in order: Assessment, Plan, Recommendations, Counseling, Subjective, Objective"
+      validation_regex: "(?s)Assessment.*?Plan.*?Recommendations.*?Counseling.*?Subjective.*?Objective"
+      error_message: "Sections not in correct APSO order"
+
+    - id: "NO_AI_LANGUAGE"
+      name: "No AI Language Markers"
+      description: "Must not contain AI language markers"
+      banned_phrases:
+        - "based on the provided information"
+        - "the note indicates"
+        - "not specified"
+        - "unspecified"
+        - "N/A"
+        - "not available"
+        - "as mentioned"
+        - "as noted"
+        - "it appears"
+        - "it seems"
+        - "the patient reports that"
+      error_message: "Contains AI language markers"
+
+    - id: "PROVIDER_VOICE"
+      name: "Provider First-Person Voice"
+      description: "Note must be written in provider's voice"
+      required_patterns:
+        - "(?i)(patient presents|counseled|will continue|plan to)"
+      error_message: "Not written in provider voice"
+
+    - id: "ICD10_CODES"
+      name: "ICD-10 Codes Present"
+      description: "Plan section must include ICD-10 diagnostic codes"
+      validation_regex: "(?i)Plan.*?\\b[A-Z]\\d{2}\\.?\\d{0,4}\\b"
+      error_message: "Missing ICD-10 codes in Plan section"
+
+  # HIGH PRIORITY - Important but can proceed with warning
+  high:
+    - id: "EMERGENCY_COUNSELING"
+      name: "Emergency Counseling"
+      description: "Must include 911/988 emergency instructions"
+      required_patterns:
+        - "(?i)(911|988)"
+      error_message: "Missing emergency counseling (911/988)"
+
+    - id: "CONTROLLED_SUBSTANCE_WARNING"
+      name: "Controlled Substance Counseling"
+      description: "MAT/Suboxone notes must include controlled substance warnings"
+      condition_regex: "(?i)(buprenorphine|suboxone|MAT)"
+      required_patterns:
+        - "(?i)(controlled substance|diversion)"
+      error_message: "Missing controlled substance counseling for MAT"
+
+    - id: "ROS_PRESENT"
+      name: "Review of Systems"
+      description: "Subjective section must include ROS"
+      validation_regex: "(?i)ROS:?\\s"
+      error_message: "Missing Review of Systems (ROS)"
+
+    - id: "MSE_PRESENT"
+      name: "Mental Status Exam"
+      description: "Objective section must include MSE"
+      validation_regex: "(?i)MSE:?\\s"
+      error_message: "Missing Mental Status Exam (MSE)"
+
+  # MEDIUM PRIORITY - Quality improvements
+  medium:
+    - id: "MEDICATION_FORMAT"
+      name: "Medication Format"
+      description: "Medications should include name, strength, and frequency"
+      validation_regex: "(?i)\\d+\\s?mg"
+      error_message: "Medications may be missing dosage information"
+
+    - id: "SUPERVISING_PHYSICIAN"
+      name: "Supervising Physician"
+      description: "Should mention supervising physician if applicable"
+      required_patterns:
+        - "(?i)(Dr\\.|supervising physician)"
+      error_message: "May be missing supervising physician reference"
+
+    - id: "FOLLOWUP_INTERVAL"
+      name: "Follow-up Interval"
+      description: "Recommendations should include follow-up timeframe"
+      required_patterns:
+        - "(?i)(week|weeks|month|follow.?up)"
+      error_message: "May be missing follow-up interval"
+
+  # LOW PRIORITY - Nice to have
+  low:
+    - id: "PDMP_CHECK"
+      name: "PDMP Check"
+      description: "Should document PDMP check for controlled substances"
+      condition_regex: "(?i)(controlled substance|buprenorphine|suboxone)"
+      required_patterns:
+        - "(?i)PDMP"
+      error_message: "PDMP check not documented for controlled substance"
+
+    - id: "CASE_MANAGER_COORD"
+      name: "Case Manager Coordination"
+      description: "Should document case manager coordination"
+      required_patterns:
+        - "(?i)case manager"
+      error_message: "Case manager coordination not documented"
+
+# Human Intervention Triggers
+# Conditions that automatically flag a note for human review
+human_intervention_triggers:
+  - "Any CRITICAL requirement fails"
+  - "3 or more HIGH priority failures"
+  - "Verification step returns NEEDS_HUMAN_REVIEW"
+  - "OpenAI API returns error or timeout"
+  - "Note length < 200 characters (likely incomplete)"
+  - "Note length > 10000 characters (unexpectedly long)"
+
+# User Customization Instructions
+# Users can modify:
+# 1. initial_prompt - Adjust the initial formatting instructions
+# 2. verification_prompt - Modify the verification criteria
+# 3. requirements.* - Add/remove/modify validation checks
+# 4. banned_phrases - Add additional AI language to detect
+# 5. required_patterns - Modify what must be present in notes

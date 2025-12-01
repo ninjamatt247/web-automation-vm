@@ -55,6 +55,14 @@ class AppConfig:
     days_to_fetch: int
     download_individual_files: bool
 
+    # Osmind API Configuration
+    osmind_api_base_url: str
+    osmind_api_timeout: int
+    osmind_batch_size: int
+    osmind_rate_limit_delay: int
+    osmind_max_retries: int
+    osmind_default_start_date: str
+
     @classmethod
     def from_env(cls) -> "AppConfig":
         """Load configuration from environment variables."""
@@ -90,7 +98,15 @@ class AppConfig:
 
             # Data Processing
             days_to_fetch=int(os.getenv("DAYS_TO_FETCH", "1")),
-            download_individual_files=os.getenv("DOWNLOAD_INDIVIDUAL_FILES", "true").lower() == "true"
+            download_individual_files=os.getenv("DOWNLOAD_INDIVIDUAL_FILES", "true").lower() == "true",
+
+            # Osmind API
+            osmind_api_base_url=os.getenv("OSMIND_API_BASE_URL", "https://prod-app-api.osmind.org"),
+            osmind_api_timeout=int(os.getenv("OSMIND_API_TIMEOUT", "30000")),
+            osmind_batch_size=int(os.getenv("OSMIND_BATCH_SIZE", "50")),
+            osmind_rate_limit_delay=int(os.getenv("OSMIND_RATE_LIMIT_DELAY", "1")),
+            osmind_max_retries=int(os.getenv("OSMIND_MAX_RETRIES", "3")),
+            osmind_default_start_date=os.getenv("OSMIND_DEFAULT_START_DATE", "2025-01-01")
         )
 
     def validate(self) -> list[str]:

@@ -1,0 +1,76 @@
+---
+title: Installation
+description: Get started with Plasma by installing the necessary dependencies and setting up your environment.
+---
+
+## Prerequisites
+
+Before installing Plasma, make sure you have the following installed:
+
+- Node.js 18.0 or later
+- npm, yarn, or pnpm
+- Git
+
+## Quick Start
+
+<Card>
+  <CardHeader>
+    <CardTitle>Install via npm</CardTitle>
+    <CardDescription>The recommended way to install Plasma</CardDescription>
+  </CardHeader>
+  <CardContent>
+
+```bash
+npm install plasma-core
+```
+
+  </CardContent>
+</Card>
+
+## Manual Installation
+
+If you prefer to install manually, follow these steps:
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/your-org/plasma.git
+cd plasma
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Build the project:
+
+```bash
+npm run build
+```
+
+## Configuration
+
+After installation, create a `plasma.config.js` file in your project root:
+
+```javascript
+export default {
+  // Your configuration options
+  apiUrl: 'https://api.plasma.dev',
+  features: {
+    ai: true,
+    crm: true,
+  },
+};
+```
+
+> **Note**: Make sure to replace the API URL with your actual endpoint.
+
+## Next Steps
+
+- Read the [Core Concepts](/docs/core-concepts) to understand Plasma's architecture
+- Explore [AI Prompts](/docs/ai-prompts) to leverage AI capabilities
+- Check out the [File Systems](/docs/file-systems) guide for managing files
+
+<Badge variant="muted">Ready to go!</Badge>

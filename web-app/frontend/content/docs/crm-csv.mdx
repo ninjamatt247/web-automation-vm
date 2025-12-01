@@ -1,0 +1,307 @@
+---
+title: CRM/CSV
+description: Learn how to manage and import CRM data using CSV files for efficient data processing.
+---
+
+## Overview
+
+Plasma provides powerful tools for managing customer relationship data through CSV files and direct CRM integrations.
+
+<Steps>
+
+<Step>
+### Prepare Your Data
+
+Ensure your CSV files follow the correct format:
+
+<Files>
+  <File name="customers.csv" />
+  <File name="contacts.csv" />
+  <File name="leads.csv" />
+  <File name="companies.csv" />
+</Files>
+
+Example CSV structure:
+
+```csv title="customers.csv"
+id,name,email,phone,company,status,created_date
+1,John Doe,john@example.com,+1234567890,Acme Corp,active,2024-01-15
+2,Jane Smith,jane@example.com,+0987654321,Tech Ltd,inactive,2024-01-16
+```
+
+</Step>
+
+<Step>
+### Import Data
+
+Use Plasma's import functionality:
+
+```typescript title="import-csv.ts"
+import { csvImporter } from 'plasma';
+
+const result = await csvImporter.import('customers.csv', {
+  mapping: {
+    'Customer Name': 'name',
+    'Email Address': 'email',
+    'Phone Number': 'phone',
+  },
+  validation: true,
+  batchSize: 1000,
+});
+```
+
+</Step>
+
+<Step>
+### Validate & Process
+
+Review imported data and handle errors:
+
+```typescript
+if (result.errors.length > 0) {
+  console.log('Import errors:', result.errors);
+}
+
+console.log(`Imported ${result.successful} records`);
+```
+
+</Step>
+
+</Steps>
+
+## Data Formats
+
+<Tabs items={['Customer Data', 'Lead Data', 'Company Data', 'Contact Data']}>
+
+<Tab value="Customer Data">
+### Customer CSV Format
+
+Required fields for customer data:
+
+<TypeTable 
+  type={{
+    id: {
+      description: 'Unique customer identifier',
+      type: 'string | number',
+      required: true
+    },
+    name: {
+      description: 'Customer full name',
+      type: 'string',
+      required: true
+    },
+    email: {
+      description: 'Primary email address',
+      type: 'string',
+      required: true
+    },
+    phone: {
+      description: 'Phone number with country code',
+      type: 'string',
+      required: false
+    },
+    company: {
+      description: 'Associated company name',
+      type: 'string',
+      required: false
+    },
+    status: {
+      description: 'Customer status',
+      type: '"active" | "inactive" | "prospect"',
+      required: false,
+      default: '"prospect"'
+    }
+  }}
+/>
+</Tab>
+
+<Tab value="Lead Data">
+### Lead CSV Format
+
+```csv title="leads.csv"
+id,name,email,source,score,stage,assigned_to
+1,Alice Johnson,alice@test.com,website,85,qualified,john.doe
+2,Bob Wilson,bob@test.com,referral,65,contacted,jane.smith
+```
+
+Lead scoring integration:
+
+```typescript
+const leadProcessor = await csvImporter.processLeads('leads.csv', {
+  scoreThreshold: 70,
+  autoAssign: true,
+  notifyAssignee: true,
+});
+```
+
+</Tab>
+
+<Tab value="Company Data">
+### Company CSV Format
+
+```csv title="companies.csv"
+id,name,domain,industry,size,revenue,location
+1,Acme Corp,acme.com,Technology,500,10000000,New York
+2,Tech Solutions,techsol.com,Consulting,50,2000000,California
+```
+
+</Tab>
+
+<Tab value="Contact Data">
+### Contact CSV Format
+
+```csv title="contacts.csv"
+id,first_name,last_name,email,title,company_id,department
+1,John,Doe,john@acme.com,Manager,1,Sales
+2,Jane,Smith,jane@acme.com,Developer,1,Engineering
+```
+
+</Tab>
+
+</Tabs>
+
+## CRM Integration
+
+<Accordions>
+
+<Accordion title="Salesforce Integration">
+Connect directly to Salesforce for real-time data sync:
+
+```typescript title="salesforce-sync.ts"
+import { crmIntegration } from 'plasma';
+
+const salesforce = await crmIntegration.connect('salesforce', {
+  clientId: process.env.SALESFORCE_CLIENT_ID,
+  clientSecret: process.env.SALESFORCE_CLIENT_SECRET,
+  sandbox: false,
+});
+
+// Sync customers
+const customers = await salesforce.getCustomers({
+  lastModified: new Date('2024-01-01'),
+});
+
+// Export to CSV
+await csvExporter.export(customers, 'salesforce-customers.csv');
+```
+
+</Accordion>
+
+<Accordion title="HubSpot Integration">
+Connect to HubSpot for contact and deal management:
+
+```typescript title="hubspot-sync.ts"
+const hubspot = await crmIntegration.connect('hubspot', {
+  apiKey: process.env.HUBSPOT_API_KEY,
+});
+
+// Bulk import contacts
+const contacts = await csvImporter.parseFile('contacts.csv');
+await hubspot.bulkCreateContacts(contacts);
+```
+
+</Accordion>
+
+<Accordion title="Custom CRM Integration">
+Build custom integrations for proprietary CRM systems:
+
+```typescript title="custom-crm.ts"
+class CustomCRMIntegration {
+  async importData(csvFile: string) {
+    const data = await csvImporter.parse(csvFile);
+
+    // Transform data to match CRM format
+    const transformed = data.map((row) => ({
+      externalId: row.id,
+      fullName: `${row.first_name} ${row.last_name}`,
+      emailAddress: row.email,
+      // Custom mapping logic
+    }));
+
+    return this.bulkCreate(transformed);
+  }
+}
+```
+
+</Accordion>
+
+</Accordions>
+
+## Data Validation
+
+Ensure data quality with built-in validation:
+
+```typescript title="validation.ts"
+import { validator } from 'plasma';
+
+const schema = {
+  email: validator.email(),
+  phone: validator.phone(),
+  name: validator.string().min(2).max(100),
+  company: validator.string().optional(),
+  status: validator.enum(['active', 'inactive', 'prospect']),
+};
+
+const validationResult = await csvImporter.validate('customers.csv', schema);
+
+if (!validationResult.isValid) {
+  console.log('Validation errors:', validationResult.errors);
+}
+```
+
+## Export Features
+
+<CodeBlock title="Export to multiple formats">
+```typescript
+// Export filtered customer data
+const activeCustomers = await crm.getCustomers({ 
+  status: 'active',
+  lastActivity: { since: '2024-01-01' }
+});
+
+// Export to CSV
+await csvExporter.export(activeCustomers, 'active-customers.csv');
+
+// Export to Excel
+await excelExporter.export(activeCustomers, 'active-customers.xlsx');
+
+// Export to JSON
+await jsonExporter.export(activeCustomers, 'active-customers.json');
+
+````
+</CodeBlock>
+
+## Batch Processing
+
+Handle large datasets efficiently:
+
+```typescript title="batch-processing.ts"
+const batchProcessor = csvImporter.createBatchProcessor({
+  batchSize: 1000,
+  concurrency: 5,
+  retries: 3
+});
+
+batchProcessor.onProgress((progress) => {
+  console.log(`Processed ${progress.completed}/${progress.total} records`);
+});
+
+batchProcessor.onError((error, batch) => {
+  console.error(`Batch ${batch.id} failed:`, error);
+});
+
+await batchProcessor.process('large-dataset.csv');
+````
+
+## Best Practices
+
+> **Performance Tip**: Use batch processing for files larger than 10,000 records to maintain optimal performance.
+
+- Validate data before import
+- Use consistent field naming
+- Include unique identifiers
+- Implement error handling
+- Monitor import progress
+- Backup data before bulk operations
+
+<Badge variant="default">CRM Ready</Badge>

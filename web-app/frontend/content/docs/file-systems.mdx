@@ -1,0 +1,300 @@
+---
+title: File Systems
+description: Understand how to manage and organize files efficiently within the Plasma ecosystem.
+---
+
+## Project Structure
+
+Plasma follows a well-organized file structure that promotes maintainability and scalability:
+
+<Files>
+  <Folder name="plasma-project" defaultOpen>
+    <Folder name="src" defaultOpen>
+      <Folder name="components">
+        <File name="Button.tsx" />
+        <File name="Modal.tsx" />
+        <File name="index.ts" />
+      </Folder>
+      <Folder name="pages">
+        <File name="home.tsx" />
+        <File name="about.tsx" />
+      </Folder>
+      <Folder name="utils">
+        <File name="helpers.ts" />
+        <File name="api.ts" />
+      </Folder>
+      <Folder name="styles">
+        <File name="globals.css" />
+        <File name="components.css" />
+      </Folder>
+    </Folder>
+    <Folder name="public">
+      <File name="favicon.ico" />
+      <File name="logo.svg" />
+    </Folder>
+    <Folder name="docs">
+      <File name="README.md" />
+      <File name="api.md" />
+    </Folder>
+    <File name="plasma.config.js" />
+    <File name="package.json" />
+    <File name="tsconfig.json" />
+  </Folder>
+</Files>
+
+## File Management
+
+<Tabs items={['Creating Files', 'File Watching', 'File Operations']}>
+
+<Tab value="Creating Files">
+### Creating Files Programmatically
+
+Use Plasma's file API to create and manage files:
+
+```typescript title="file-manager.ts"
+import { fileSystem } from 'plasma';
+
+// Create a new file
+await fileSystem.create('src/components/NewComponent.tsx', {
+  template: 'react-component',
+  props: { name: 'NewComponent' },
+});
+
+// Create directory structure
+await fileSystem.createDirectory('src/features/auth');
+```
+
+</Tab>
+
+<Tab value="File Watching">
+### File Watching
+
+Monitor file changes in real-time:
+
+```typescript
+import { fileWatcher } from 'plasma';
+
+fileWatcher.watch('src/**/*.{ts,tsx}', {
+  onChange: (filePath) => {
+    console.log(`File changed: ${filePath}`);
+    // Trigger rebuild or hot reload
+  },
+  onAdd: (filePath) => {
+    console.log(`File added: ${filePath}`);
+  },
+});
+```
+
+</Tab>
+
+<Tab value="File Operations">
+### File Operations
+
+Common file operations:
+
+```typescript
+// Read file content
+const content = await fileSystem.read('src/config.ts');
+
+// Write file content
+await fileSystem.write('dist/bundle.js', compiledCode);
+
+// Copy files
+await fileSystem.copy('src/assets', 'dist/assets');
+
+// Delete files
+await fileSystem.delete('temp/cache.json');
+```
+
+</Tab>
+
+</Tabs>
+
+## Configuration Files
+
+<Steps>
+
+<Step>
+### Main Configuration
+
+The `plasma.config.js` file is the heart of your project configuration:
+
+```javascript title="plasma.config.js"
+export default {
+  // File system settings
+  fileSystem: {
+    watchPatterns: ['src/**/*'],
+    ignorePatterns: ['node_modules/**', 'dist/**'],
+    outputDir: 'dist',
+  },
+
+  // Build settings
+  build: {
+    target: 'es2020',
+    format: 'esm',
+    sourcemap: true,
+  },
+};
+```
+
+</Step>
+
+<Step>
+### TypeScript Configuration
+
+Configure TypeScript for optimal development:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@components/*": ["./src/components/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+</Step>
+
+<Step>
+### Package Configuration
+
+Set up your package.json with Plasma scripts:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "plasma dev",
+    "build": "plasma build",
+    "preview": "plasma preview",
+    "lint": "plasma lint"
+  }
+}
+```
+
+</Step>
+
+</Steps>
+
+## File Templates
+
+Plasma supports file templates for consistent code generation:
+
+<Accordions>
+
+<Accordion title="Component Template">
+```tsx title="templates/component.tsx"
+import React from 'react';
+
+interface {{name}}Props {
+// Define your props here
+}
+
+export const {{name}}: React.FC<{{name}}Props> = (props) => {
+  return (
+    <div className="{{kebabCase name}}">
+      {/* Component content */}
+    </div>
+  );
+};
+
+export default {{name}};
+```
+</Accordion>
+
+<Accordion title="Page Template">
+```tsx title="templates/page.tsx"
+import React from 'react';
+import { Metadata } from 'plasma';
+
+export const metadata: Metadata = {
+  title: '{{title}}',
+  description: '{{description}}'
+};
+
+export default function {{name}}Page() {
+  return (
+    <div className="page-{{kebabCase name}}">
+      <h1>{{title}}</h1>
+      {/* Page content */}
+    </div>
+  );
+}
+```
+</Accordion>
+
+<Accordion title="Hook Template">
+```tsx title="templates/hook.ts"
+import { useState, useEffect } from 'react';
+
+export function use{{name}}() {
+  const [state, setState] = useState(null);
+
+useEffect(() => {
+// Hook logic
+}, []);
+
+return {
+state,
+setState
+};
+}
+
+```
+</Accordion>
+
+</Accordions>
+
+## File System API
+
+<TypeTable
+  type={{
+    create: {
+      description: 'Create a new file with optional template',
+      type: '(path: string, options?: CreateOptions) => Promise<void>',
+      required: true,
+    },
+    read: {
+      description: 'Read file content as string',
+      type: '(path: string) => Promise<string>',
+      required: true,
+    },
+    write: {
+      description: 'Write content to file',
+      type: '(path: string, content: string) => Promise<void>',
+      required: true,
+    },
+    delete: {
+      description: 'Delete a file or directory',
+      type: '(path: string) => Promise<void>',
+      required: true,
+    },
+    exists: {
+      description: 'Check if file exists',
+      type: '(path: string) => Promise<boolean>',
+      required: true,
+    },
+  }}
+/>
+
+## Best Practices
+
+> **Important**: Always use absolute paths or configure path aliases for better maintainability.
+
+- Use descriptive file and folder names
+- Group related files in logical directories
+- Keep configuration files in the project root
+- Use templates for consistent file structure
+- Implement proper file watching for development
+
+<Badge variant="info">File System Ready</Badge>

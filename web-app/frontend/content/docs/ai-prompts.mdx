@@ -1,0 +1,190 @@
+---
+title: AI Prompts
+description: Discover how to leverage AI capabilities and create effective prompts for your use cases.
+---
+
+## Getting Started with AI
+
+Plasma integrates AI capabilities to accelerate development and improve code quality through intelligent assistance.
+
+<Steps>
+
+<Step>
+### Setup AI Configuration
+
+First, configure your AI settings in the Plasma configuration file:
+
+```javascript title="plasma.config.js"
+export default {
+  ai: {
+    provider: 'openai',
+    model: 'gpt-4',
+    apiKey: process.env.OPENAI_API_KEY,
+  },
+};
+```
+
+</Step>
+
+<Step>
+### Create Your First Prompt
+
+Use the AI prompt system to generate code or get suggestions:
+
+```typescript
+import { ai } from 'plasma';
+
+const result = await ai.prompt('Generate a React component for user profile');
+```
+
+</Step>
+
+<Step>
+### Customize Prompts
+
+Enhance your prompts with context and examples for better results.
+
+</Step>
+
+</Steps>
+
+## Prompt Types
+
+<Tabs items={['Code Generation', 'Documentation', 'Testing']}>
+
+<Tab value="Code Generation">
+Generate code components, functions, and entire modules using AI.
+
+<CodeBlock lang="typescript" title="Component Generation">
+```typescript
+// Generate a complete React component
+const component = await ai.generateComponent({
+  name: 'UserDashboard',
+  props: ['user', 'onUpdate'],
+  features: ['responsive', 'accessible']
+});
+```
+</CodeBlock>
+</Tab>
+
+<Tab value="Documentation">
+Automatically generate documentation for your code.
+
+```typescript
+// Generate docs for existing functions
+const docs = await ai.generateDocs(functionCode);
+```
+
+</Tab>
+
+<Tab value="Testing">
+Create comprehensive test suites for your components.
+
+```typescript
+// Generate tests
+const tests = await ai.generateTests(componentCode);
+```
+
+</Tab>
+
+</Tabs>
+
+## File Structure
+
+Here's how AI-generated files are organized in your project:
+
+<Files>
+  <Folder name="src" defaultOpen>
+    <Folder name="ai-generated">
+      <File name="components.ts" />
+      <File name="utils.ts" />
+      <File name="types.ts" />
+    </Folder>
+    <Folder name="prompts">
+      <File name="templates.ts" />
+      <File name="custom.ts" />
+    </Folder>
+  </Folder>
+  <File name="ai.config.js" />
+</Files>
+
+## Advanced Configuration
+
+<Accordions>
+
+<Accordion title="Custom Models">
+Configure custom AI models for specific use cases:
+
+```typescript
+const customModel = {
+  name: 'code-specialist',
+  baseModel: 'gpt-4',
+  systemPrompt: 'You are a senior React developer...',
+  temperature: 0.1,
+};
+```
+
+</Accordion>
+
+<Accordion title="Prompt Templates">
+Create reusable prompt templates:
+
+```typescript
+const templates = {
+  component: 'Generate a React component that {description}',
+  test: 'Create comprehensive tests for {componentName}',
+  docs: 'Write documentation for {functionName}',
+};
+```
+
+</Accordion>
+
+<Accordion title="Context Integration">
+Integrate project context for better AI responses:
+
+```typescript
+const context = {
+  framework: 'React',
+  typescript: true,
+  styleGuide: 'Material-UI',
+  testFramework: 'Jest',
+};
+```
+
+</Accordion>
+
+</Accordions>
+
+## API Reference
+
+<TypeTable
+  type={{
+    prompt: {
+      description: 'The AI prompt string',
+      type: 'string',
+      required: true,
+    },
+    context: {
+      description: 'Additional context for the AI',
+      type: 'object',
+      required: false,
+    },
+    model: {
+      description: 'AI model to use',
+      type: '"gpt-4" | "gpt-3.5-turbo" | "claude"',
+      required: false,
+      default: '"gpt-4"',
+    },
+  }}
+/>
+
+## Best Practices
+
+> **Pro Tip**: Always provide specific context and examples in your prompts for better AI responses.
+
+- Be specific about the desired output format
+- Include relevant project context
+- Test prompts with different inputs
+- Review and refine AI-generated code
+
+<Badge variant="muted">AI Enhanced</Badge>
