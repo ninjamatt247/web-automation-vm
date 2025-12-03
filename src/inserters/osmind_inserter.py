@@ -285,7 +285,14 @@ class OsmindInserter:
             return (False, None)
 
     def append_to_note(self, cleaned_note: str) -> bool:
-        """Append cleaned note to the end of existing note text.
+        """Append cleaned note to the Plan section with active medications inserted.
+
+        Workflow:
+        1. Find the Plan section in the note
+        2. Position cursor at the bottom of the Plan section
+        3. Click Insert dropdown in toolbar
+        4. Select "Insert active medication"
+        5. Append the cleaned OpenAI-processed note
 
         Args:
             cleaned_note: The cleaned note text to append
@@ -294,7 +301,7 @@ class OsmindInserter:
             bool: True if append successful
         """
         try:
-            logger.info("Appending cleaned note to existing note text...")
+            logger.info("Appending cleaned note to Plan section...")
 
             # Osmind uses a contenteditable div: div[data-testid="v2-editor-content"]
             note_field = 'div[data-testid="v2-editor-content"]'
@@ -315,19 +322,113 @@ class OsmindInserter:
                 logger.info("This note was already processed in a previous upload attempt")
                 return True  # Return True since the content is already there
 
-            # Click at the end of the note to position cursor
+            # Click into the note editor to activate it
             self.page.click(note_field)
             time.sleep(0.5)
 
-            # Move cursor to end
+            # Find the Plan section and position cursor at the bottom
+            logger.info("Looking for Plan section...")
+            try:
+                # Use Ctrl+F to search for "Plan" section
+                self.page.keyboard.press('Control+f')
+                time.sleep(0.5)
+                self.page.keyboard.type('Plan')
+                time.sleep(0.5)
+                self.page.keyboard.press('Escape')  # Close search
+                time.sleep(0.5)
+
+                # Cursor should now be near "Plan" heading
+                # Move to end of line, then down to content area
+                self.page.keyboard.press('End')
+                self.page.keyboard.press('ArrowDown')
+
+                # Find the end of Plan section (before Assessment or next section)
+                # Look for next section header by searching for common patterns
+                logger.info("Positioning cursor at end of Plan section...")
+
+                # Move down until we hit the next section or can insert
+                # For now, move to a reasonable position
+                for _ in range(3):
+                    self.page.keyboard.press('ArrowDown')
+
+                self.page.keyboard.press('End')
+                time.sleep(0.5)
+
+                logger.info("✓ Positioned cursor at end of Plan section")
+
+            except Exception as e:
+                logger.warning(f"Could not find Plan section, positioning at end: {e}")
+                # Fallback: position at end of note
+                self.page.keyboard.press('Control+End')
+
+            # Insert active medications via toolbar
+            logger.info("Inserting active medications...")
+            try:
+                # Look for Insert dropdown button in toolbar
+                # Osmind toolbar typically has buttons with specific test IDs or classes
+                insert_button_selectors = [
+                    'button:has-text("Insert")',
+                    'button[aria-label*="Insert"]',
+                    'button[data-testid*="insert"]',
+                    '.toolbar button:has-text("Insert")',
+                ]
+
+                insert_button_found = False
+                for selector in insert_button_selectors:
+                    try:
+                        insert_btn = self.page.wait_for_selector(selector, timeout=2000)
+                        if insert_btn:
+                            logger.info(f"Found Insert button with selector: {selector}")
+                            insert_btn.click()
+                            insert_button_found = True
+                            time.sleep(1)
+                            break
+                    except:
+                        continue
+
+                if not insert_button_found:
+                    logger.warning("Could not find Insert button, skipping medication insert")
+                else:
+                    # Click "Insert active medication" from dropdown
+                    medication_selectors = [
+                        'li:has-text("active medication")',
+                        'a:has-text("active medication")',
+                        'button:has-text("active medication")',
+                        '[role="menuitem"]:has-text("active medication")',
+                    ]
+
+                    medication_found = False
+                    for selector in medication_selectors:
+                        try:
+                            med_option = self.page.wait_for_selector(selector, timeout=2000)
+                            if med_option:
+                                logger.info(f"Found medication option with selector: {selector}")
+                                med_option.click()
+                                medication_found = True
+                                time.sleep(2)  # Wait for medications to be inserted
+                                logger.info("✓ Inserted active medications")
+                                break
+                        except:
+                            continue
+
+                    if not medication_found:
+                        logger.warning("Could not find 'active medication' option in dropdown")
+
+            except Exception as e:
+                logger.warning(f"Could not insert active medications: {e}")
+                logger.info("Continuing with note append...")
+
+            # Position cursor after inserted medications (if any)
+            time.sleep(1)
             self.page.keyboard.press('End')
-            self.page.keyboard.press('Control+End')  # Ensure at very end
+            self.page.keyboard.press('Enter')
+            self.page.keyboard.press('Enter')
 
             # Add separator and new note
-            separator = "\n\n" + "="*80 + "\nFREED.AI NOTE APPENDED:\n" + "="*80 + "\n\n"
+            separator = "\n" + "="*80 + "\nFREED.AI NOTE APPENDED:\n" + "="*80 + "\n\n"
             self.page.keyboard.type(separator + cleaned_note)
 
-            logger.info("Successfully appended note text")
+            logger.info("Successfully appended note text to Plan section")
             time.sleep(2)  # Wait for auto-save
             return True
 

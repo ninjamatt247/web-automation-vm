@@ -1,0 +1,129 @@
+# Field positions for Release of Info - BOP to TCM.pdf
+# Coordinates are in points from bottom-left (PDF standard)
+
+template: "Release of Info - BOP to TCM.pdf"
+description: "Release of Information from BOP to TCM"
+
+pages:
+  0:
+    # Patient Information
+    patient_name:
+      x: 100
+      y: 720
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    date_of_birth:
+      x: 400
+      y: 720
+      font: "Helvetica"
+      size: 10
+
+    patient_ssn:
+      x: 100
+      y: 690
+      font: "Helvetica"
+      size: 10
+
+    # Release Information
+    release_from_organization:
+      x: 100
+      y: 650
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    release_from_address:
+      x: 100
+      y: 630
+      font: "Helvetica"
+      size: 9
+      max_width: 300
+
+    release_to_organization:
+      x: 100
+      y: 590
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    release_to_address:
+      x: 100
+      y: 570
+      font: "Helvetica"
+      size: 9
+      max_width: 300
+
+    # Information to be released (checkboxes/descriptions)
+    info_type_medical_records:
+      x: 120
+      y: 530
+      font: "Helvetica"
+      size: 9
+
+    info_type_treatment_plans:
+      x: 120
+      y: 510
+      font: "Helvetica"
+      size: 9
+
+    info_type_medications:
+      x: 120
+      y: 490
+      font: "Helvetica"
+      size: 9
+
+    info_type_lab_results:
+      x: 120
+      y: 470
+      font: "Helvetica"
+      size: 9
+
+    # Purpose of release
+    purpose_of_release:
+      x: 100
+      y: 420
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    # Expiration
+    expiration_date:
+      x: 100
+      y: 380
+      font: "Helvetica"
+      size: 10
+
+    # Authorization statement
+    authorization_statement:
+      x: 100
+      y: 330
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    # Signature Section
+    patient_signature:
+      x: 100
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    signature_date:
+      x: 350
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    witness_signature:
+      x: 100
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    witness_date:
+      x: 350
+      y: 120
+      font: "Helvetica"
+      size: 10

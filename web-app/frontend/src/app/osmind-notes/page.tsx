@@ -1,12 +1,27 @@
 'use client';
 
+import '@/lib/mui-license';
+
+import {
+  DataGridPremium,
+  GridActionsCellItem,
+  GridColDef,
+} from '@mui/x-data-grid-premium';
 import axios from 'axios';
-import { Check, Download, MoreVertical, Search, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, Download, MoreVertical, Search, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -21,14 +36,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 interface OsmindNote {
   id: string;
@@ -65,24 +72,18 @@ export default function OsmindNotesPage() {
   const [patientSearch, setPatientSearch] = useState('');
   const [syncingOsmind, setSyncingOsmind] = useState(false);
   const [syncMessage, setSyncMessage] = useState<SyncMessage | null>(null);
-  const [noteLimit, setNoteLimit] = useState('100');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalNotes, setTotalNotes] = useState(0);
+  const [noteLimit, setNoteLimit] = useState('0');
 
   useEffect(() => {
     fetchNotes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteLimit, currentPage]);
+  }, [noteLimit]);
 
   const fetchNotes = async () => {
     try {
       setLoading(true);
-      const offset = (currentPage - 1) * parseInt(noteLimit);
-      const response = await axios.get(
-        `/api/osmind-notes?limit=${noteLimit}&offset=${offset}`
-      );
+      const response = await axios.get(`/api/osmind-notes?limit=${noteLimit}`);
       setNotes(response.data.notes || []);
-      setTotalNotes(response.data.total || 0);
       setError(null);
     } catch (err) {
       setError('Failed to load Osmind notes');
@@ -197,7 +198,9 @@ export default function OsmindNotesPage() {
   const filteredNotes = notes.filter((note) => {
     if (patientSearch) {
       const searchLower = patientSearch.toLowerCase();
-      const patientNameMatch = note.patient_name?.toLowerCase().includes(searchLower);
+      const patientNameMatch = note.patient_name
+        ?.toLowerCase()
+        .includes(searchLower);
       if (!patientNameMatch) return false;
     }
 
@@ -219,11 +222,130 @@ export default function OsmindNotesPage() {
     return true;
   });
 
+  // Calculate KPI metrics for filtered notes
+  const kpiMetrics = useMemo(() => {
+    const totalNotes = filteredNotes.length;
+    const signedCount = filteredNotes.filter((n) => n.is_signed).length;
+    const unsignedCount = totalNotes - signedCount;
+
+    const noteLengths = filteredNotes
+      .map((n) => n.note_length || 0)
+      .filter((len) => len > 0);
+    const avgLength =
+      noteLengths.length > 0
+        ? Math.round(
+            noteLengths.reduce((sum, len) => sum + len, 0) / noteLengths.length,
+          )
+        : 0;
+
+    const uniquePatients = new Set(
+      filteredNotes.map((n) => n.patient_name).filter(Boolean),
+    ).size;
+
+    const uniqueProviders = new Set(
+      filteredNotes.map((n) => n.rendering_provider_name).filter(Boolean),
+    ).size;
+
+    const syncedFromFreed = filteredNotes.filter((n) => n.sync_source === 'freed').length;
+
+    return {
+      totalNotes,
+      signedCount,
+      unsignedCount,
+      avgLength,
+      uniquePatients,
+      uniqueProviders,
+      syncedFromFreed,
+      signRate: totalNotes > 0 ? ((signedCount / totalNotes) * 100).toFixed(1) : '0',
+    };
+  }, [filteredNotes]);
+
+  const columns: GridColDef<OsmindNote>[] = useMemo(
+    () => [
+      {
+        field: 'patient_name',
+        headerName: 'Patient',
+        width: 150,
+        valueGetter: (_value: unknown, row: OsmindNote) =>
+          row.patient_name || '-',
+      },
+      {
+        field: 'visit_date',
+        headerName: 'Visit Date',
+        width: 120,
+        valueGetter: (_value: unknown, row: OsmindNote) =>
+          formatVisitDate(row.visit_date),
+      },
+      {
+        field: 'note_type',
+        headerName: 'Type',
+        width: 120,
+        renderCell: (params: { row: OsmindNote }) => {
+          return params.row.note_type ? (
+            <Badge variant="outline">{params.row.note_type}</Badge>
+          ) : (
+            '-'
+          );
+        },
+      },
+      {
+        field: 'preview',
+        headerName: 'Preview',
+        width: 300,
+        valueGetter: (_value: unknown, row: OsmindNote) => {
+          const text = row.full_text || row.note_text || '';
+          return text.substring(0, 100) + (text.length > 100 ? '...' : '');
+        },
+      },
+      {
+        field: 'rendering_provider_name',
+        headerName: 'Provider',
+        width: 150,
+        valueGetter: (_value: unknown, row: OsmindNote) =>
+          row.rendering_provider_name || '-',
+      },
+      {
+        field: 'is_signed',
+        headerName: 'Signed',
+        width: 100,
+        renderCell: (params: { row: OsmindNote }) => {
+          return params.row.is_signed ? (
+            <Check className="h-4 w-4 text-green-600" />
+          ) : (
+            <X className="h-4 w-4 text-red-600" />
+          );
+        },
+      },
+      {
+        field: 'note_length',
+        headerName: 'Length',
+        width: 120,
+        valueGetter: (_value: unknown, row: OsmindNote) =>
+          row.note_length ? row.note_length.toLocaleString() : '-',
+      },
+      {
+        field: 'actions',
+        type: 'actions',
+        headerName: 'Actions',
+        width: 100,
+        getActions: (params: { row: OsmindNote }) => [
+          <GridActionsCellItem
+            key="view"
+            icon={<MoreVertical className="h-4 w-4" />}
+            label="View"
+            onClick={() => setSelectedNote(params.row)}
+          />,
+        ],
+      },
+    ],
+    [],
+  );
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="border-primary h-12 w-12 animate-spin rounded-full border-b-2"></div>
         </div>
       </div>
     );
@@ -232,34 +354,202 @@ export default function OsmindNotesPage() {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-destructive/10 text-destructive rounded-lg p-4">{error}</div>
+        <div className="bg-destructive/10 text-destructive rounded-lg p-4">
+          {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="container mx-auto space-y-6 px-4 py-8">
       <h1 className="text-4xl font-bold tracking-tight">
         Osmind Notes ({filteredNotes.length})
       </h1>
 
       {notes.length === 0 && !loading ? (
         <Card>
-          <CardContent className="pt-6 text-center space-y-4">
+          <CardContent className="space-y-4 pt-6 text-center">
             <p className="text-muted-foreground">No Osmind notes found.</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Run Osmind sync to fetch notes from the EHR system.
             </p>
           </CardContent>
         </Card>
       ) : (
         <>
+          {/* KPI Summary Cards */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold tracking-tight">Summary Metrics</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Total Notes</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                    {kpiMetrics.totalNotes.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Active
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    In Osmind EHR
+                  </div>
+                  <div className="text-muted-foreground">
+                    Complete clinical documentation
+                  </div>
+                </CardFooter>
+              </Card>
+
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Signed Notes</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums text-green-600 dark:text-green-400 @[250px]/card:text-3xl">
+                    {kpiMetrics.signedCount.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline" className="text-green-600 dark:text-green-400">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      {kpiMetrics.signRate}%
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Provider-approved <TrendingUp className="h-4 w-4" />
+                  </div>
+                  <div className="text-muted-foreground">
+                    Legally finalized documentation
+                  </div>
+                </CardFooter>
+              </Card>
+
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Unsigned Notes</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums text-orange-600 dark:text-orange-400 @[250px]/card:text-3xl">
+                    {kpiMetrics.unsignedCount.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline" className="text-orange-600 dark:text-orange-400">
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                      Pending
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Awaiting signature
+                  </div>
+                  <div className="text-muted-foreground">
+                    Need provider finalization
+                  </div>
+                </CardFooter>
+              </Card>
+
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Avg Note Length</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                    {kpiMetrics.avgLength.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      Characters
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Documentation detail
+                  </div>
+                  <div className="text-muted-foreground">
+                    Average note comprehensiveness
+                  </div>
+                </CardFooter>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Unique Patients</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                    {kpiMetrics.uniquePatients.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      Total
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Patient population
+                  </div>
+                  <div className="text-muted-foreground">
+                    Distinct individuals in system
+                  </div>
+                </CardFooter>
+              </Card>
+
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Providers</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                    {kpiMetrics.uniqueProviders.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      Active
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Rendering providers
+                  </div>
+                  <div className="text-muted-foreground">
+                    Clinical staff documenting care
+                  </div>
+                </CardFooter>
+              </Card>
+
+              <Card className="@container/card">
+                <CardHeader>
+                  <CardDescription>Synced from Freed</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums text-blue-600 dark:text-blue-400 @[250px]/card:text-3xl">
+                    {kpiMetrics.syncedFromFreed.toLocaleString()}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Auto
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Automated integration
+                  </div>
+                  <div className="text-muted-foreground">
+                    AI-processed and synced
+                  </div>
+                </CardFooter>
+              </Card>
+            </div>
+          </div>
+
           {syncMessage && (
             <div
-              className={`rounded-lg p-4 flex items-center justify-between ${
+              className={`flex items-center justify-between rounded-lg p-4 ${
                 syncMessage.type === 'success'
-                  ? 'bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200'
-                  : 'bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200'
+                  ? 'bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200'
+                  : 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200'
               }`}
             >
               <span>{syncMessage.text}</span>
@@ -268,7 +558,7 @@ export default function OsmindNotesPage() {
                 size="sm"
                 onClick={() => setSyncMessage(null)}
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -279,9 +569,9 @@ export default function OsmindNotesPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-4">
-                <div className="flex-1 min-w-[200px]">
+                <div className="min-w-[200px] flex-1">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform" />
                     <Input
                       placeholder="Search patients..."
                       value={patientSearch}
@@ -291,13 +581,7 @@ export default function OsmindNotesPage() {
                   </div>
                 </div>
 
-                <Select
-                  value={noteLimit}
-                  onValueChange={(value) => {
-                    setNoteLimit(value);
-                    setCurrentPage(1);
-                  }}
-                >
+                <Select value={noteLimit} onValueChange={setNoteLimit}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Show notes" />
                   </SelectTrigger>
@@ -307,6 +591,8 @@ export default function OsmindNotesPage() {
                     <SelectItem value="100">100 per page</SelectItem>
                     <SelectItem value="250">250 per page</SelectItem>
                     <SelectItem value="500">500 per page</SelectItem>
+                    <SelectItem value="1000">1000 per page</SelectItem>
+                    <SelectItem value="0">All Notes</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -317,12 +603,12 @@ export default function OsmindNotesPage() {
                 >
                   {syncingOsmind ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                       Syncing...
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4 mr-2" />
+                      <Download className="mr-2 h-4 w-4" />
                       Sync from Osmind
                     </>
                   )}
@@ -387,116 +673,81 @@ export default function OsmindNotesPage() {
               <CardTitle>Notes</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Visit Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Preview</TableHead>
-                      <TableHead>Provider</TableHead>
-                      <TableHead>Signed</TableHead>
-                      <TableHead>Length</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredNotes.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">
-                          No notes match the current filters
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredNotes.map((note) => (
-                        <TableRow key={note.id}>
-                          <TableCell className="font-medium">
-                            {note.patient_name || '-'}
-                          </TableCell>
-                          <TableCell>{formatVisitDate(note.visit_date)}</TableCell>
-                          <TableCell>
-                            {note.note_type ? (
-                              <Badge variant="outline">{note.note_type}</Badge>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-md truncate">
-                            {note.full_text?.substring(0, 100) || note.note_text?.substring(0, 100) || '-'}
-                            {(note.full_text || note.note_text || '').length > 100 && '...'}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {note.rendering_provider_name || '-'}
-                          </TableCell>
-                          <TableCell>
-                            {note.is_signed ? (
-                              <Check className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <X className="w-4 h-4 text-red-600" />
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {note.note_length ? note.note_length.toLocaleString() : '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedNote(note)}
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+              <div style={{ width: '100%' }}>
+                <DataGridPremium
+                  autoHeight
+                  rows={filteredNotes}
+                  columns={columns}
+                  pageSizeOptions={[25, 50, 100, 250, 500, 1000]}
+                  initialState={{
+                    pagination: {
+                      paginationModel: { pageSize: parseInt(noteLimit) || 100, page: 0 },
+                    },
+                  }}
+                  pagination
+                  paginationMode="client"
+                  disableRowSelectionOnClick
+                  sx={{
+                    border: 'none',
+                    '& .MuiDataGrid-main': {
+                      backgroundColor: 'hsl(var(--background))',
+                    },
+                    '& .MuiDataGrid-cell': {
+                      borderColor: 'hsl(var(--border))',
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiDataGrid-columnHeaders': {
+                      backgroundColor: 'hsl(var(--muted))',
+                      borderColor: 'hsl(var(--border))',
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiDataGrid-columnHeaderTitle': {
+                      color: 'hsl(var(--foreground))',
+                      fontWeight: 600,
+                    },
+                    '& .MuiDataGrid-row': {
+                      backgroundColor: 'hsl(var(--background))',
+                      '&:hover': {
+                        backgroundColor: 'hsl(var(--muted))',
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: 'hsl(var(--muted))',
+                        '&:hover': {
+                          backgroundColor: 'hsl(var(--muted))',
+                        },
+                      },
+                    },
+                    '& .MuiDataGrid-footerContainer': {
+                      borderColor: 'hsl(var(--border))',
+                      backgroundColor: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiTablePagination-root': {
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiSelect-select': {
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: 'hsl(var(--foreground))',
+                    },
+                    '& .MuiDataGrid-overlay': {
+                      backgroundColor: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
+                    },
+                  }}
+                />
               </div>
-
-              {/* Pagination Controls */}
-              {totalNotes > 0 && (
-                <div className="flex items-center justify-between pt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * parseInt(noteLimit) + 1} to{' '}
-                    {Math.min(currentPage * parseInt(noteLimit), totalNotes)} of{' '}
-                    {totalNotes} notes
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <div className="text-sm text-muted-foreground">
-                      Page {currentPage} of {Math.ceil(totalNotes / parseInt(noteLimit))}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setCurrentPage((prev) =>
-                          Math.min(Math.ceil(totalNotes / parseInt(noteLimit)), prev + 1)
-                        )
-                      }
-                      disabled={currentPage >= Math.ceil(totalNotes / parseInt(noteLimit))}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </>
       )}
 
       <Dialog open={!!selectedNote} onOpenChange={() => setSelectedNote(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Note Details</DialogTitle>
           </DialogHeader>
@@ -504,59 +755,95 @@ export default function OsmindNotesPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Patient Name</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Patient Name
+                  </h3>
                   <p className="mt-1">{selectedNote.patient_name || '-'}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Visit Date</h3>
-                  <p className="mt-1">{formatVisitDate(selectedNote.visit_date)}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Note Type</h3>
-                  <p className="mt-1">{selectedNote.note_type || '-'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Provider</h3>
-                  <p className="mt-1">{selectedNote.rendering_provider_name || '-'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Location</h3>
-                  <p className="mt-1">{selectedNote.location_name || '-'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Signed</h3>
-                  <p className="mt-1">{selectedNote.is_signed ? 'Yes' : 'No'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Note Length</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Visit Date
+                  </h3>
                   <p className="mt-1">
-                    {selectedNote.note_length ? `${selectedNote.note_length.toLocaleString()} characters` : '-'}
+                    {formatVisitDate(selectedNote.visit_date)}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Note Type
+                  </h3>
+                  <p className="mt-1">{selectedNote.note_type || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Provider
+                  </h3>
                   <p className="mt-1">
-                    {selectedNote.created_at ? new Date(selectedNote.created_at).toLocaleString() : '-'}
+                    {selectedNote.rendering_provider_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Location
+                  </h3>
+                  <p className="mt-1">{selectedNote.location_name || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Signed
+                  </h3>
+                  <p className="mt-1">
+                    {selectedNote.is_signed ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Note Length
+                  </h3>
+                  <p className="mt-1">
+                    {selectedNote.note_length
+                      ? `${selectedNote.note_length.toLocaleString()} characters`
+                      : '-'}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Created
+                  </h3>
+                  <p className="mt-1">
+                    {selectedNote.created_at
+                      ? new Date(selectedNote.created_at).toLocaleString()
+                      : '-'}
                   </p>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Full Note Text</h3>
-                <div className="bg-muted/50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-sm font-mono">
-                    {selectedNote.full_text || selectedNote.note_text || 'No note text available'}
+                <h3 className="text-muted-foreground mb-2 text-sm font-medium">
+                  Full Note Text
+                </h3>
+                <div className="bg-muted/50 max-h-96 overflow-y-auto rounded-lg p-4">
+                  <pre className="font-mono text-sm whitespace-pre-wrap">
+                    {selectedNote.full_text ||
+                      selectedNote.note_text ||
+                      'No note text available'}
                   </pre>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Osmind Note ID</h3>
-                  <p className="mt-1 text-xs font-mono">{selectedNote.osmind_note_id || '-'}</p>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Osmind Note ID
+                  </h3>
+                  <p className="mt-1 font-mono text-xs">
+                    {selectedNote.osmind_note_id || '-'}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Sync Source</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">
+                    Sync Source
+                  </h3>
                   <p className="mt-1">{selectedNote.sync_source || '-'}</p>
                 </div>
               </div>

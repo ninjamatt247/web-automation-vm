@@ -124,6 +124,24 @@ class PromptConfig:
         """
         return self.requirements
 
+    def get_requirements_by_priority(self) -> Dict[str, List[RequirementCheck]]:
+        """Get requirements organized by priority level.
+
+        Returns:
+            Dictionary with priority levels as keys and lists of requirements as values
+        """
+        result = {
+            'critical': [],
+            'high': [],
+            'medium': [],
+            'low': []
+        }
+        for req in self.requirements:
+            priority = req.priority.lower()
+            if priority in result:
+                result[priority].append(req)
+        return result
+
     def get_human_intervention_triggers(self) -> List[str]:
         """Get list of conditions that trigger human intervention.
 

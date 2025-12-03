@@ -346,6 +346,165 @@ class Database:
             ON patient_tags(tag_id)
         """)
 
+        # PDF Forms Generated table - tracks all generated PDFs and upload status
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pdf_forms_generated (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                visit_id INTEGER,
+                visit_date TEXT,
+                form_type TEXT NOT NULL,
+                template_name TEXT NOT NULL,
+                pdf_filename TEXT NOT NULL,
+                pdf_local_path TEXT,
+                onedrive_url TEXT,
+                onedrive_folder_name TEXT,
+                upload_status TEXT DEFAULT 'pending',
+                generation_status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                uploaded_at TIMESTAMP,
+                metadata TEXT,
+                flagged_for_review BOOLEAN DEFAULT 0,
+                flag_reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+                UNIQUE(patient_id, visit_date, form_type)
+            )
+        """)
+
+        # Create indexes for pdf_forms_generated
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pdf_forms_patient
+            ON pdf_forms_generated(patient_id)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pdf_forms_visit_date
+            ON pdf_forms_generated(visit_date)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pdf_forms_upload_status
+            ON pdf_forms_generated(upload_status)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pdf_forms_flagged
+            ON pdf_forms_generated(flagged_for_review)
+        """)
+
+        # AI Processing Results table - stores multi-step processing data
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ai_processing_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER,
+                patient_name TEXT,
+                visit_date TEXT,
+                raw_note TEXT NOT NULL,
+                step1_note TEXT,
+                step2_note TEXT,
+                final_cleaned_note TEXT,
+                step2_status TEXT,
+                verification_status TEXT,
+                processing_status TEXT NOT NULL,
+                requires_human_intervention BOOLEAN DEFAULT 0,
+                human_intervention_reasons TEXT,
+                total_checks INTEGER DEFAULT 0,
+                passed_checks INTEGER DEFAULT 0,
+                failed_checks INTEGER DEFAULT 0,
+                critical_failures INTEGER DEFAULT 0,
+                high_failures INTEGER DEFAULT 0,
+                medium_failures INTEGER DEFAULT 0,
+                low_failures INTEGER DEFAULT 0,
+                tokens_used INTEGER DEFAULT 0,
+                model_used TEXT,
+                error_message TEXT,
+                processing_duration_ms INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at TIMESTAMP,
+                reviewed_by TEXT,
+                review_notes TEXT,
+                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL
+            )
+        """)
+
+        # Validation Checks table - stores individual validation check results
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS validation_checks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                processing_result_id INTEGER NOT NULL,
+                requirement_id TEXT NOT NULL,
+                requirement_name TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                passed BOOLEAN NOT NULL,
+                error_message TEXT,
+                details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (processing_result_id) REFERENCES ai_processing_results(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Human Intervention Queue table - tracks notes needing human review
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS human_intervention_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                processing_result_id INTEGER NOT NULL,
+                patient_id INTEGER,
+                patient_name TEXT,
+                visit_date TEXT,
+                priority TEXT DEFAULT 'HIGH',
+                intervention_reasons TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                assigned_to TEXT,
+                assigned_at TIMESTAMP,
+                resolved_at TIMESTAMP,
+                resolution_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (processing_result_id) REFERENCES ai_processing_results(id) ON DELETE CASCADE,
+                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL
+            )
+        """)
+
+        # Create indexes for AI processing tables
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_processing_patient
+            ON ai_processing_results(patient_id)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_processing_status
+            ON ai_processing_results(processing_status)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_processing_intervention
+            ON ai_processing_results(requires_human_intervention)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_validation_checks_result
+            ON validation_checks(processing_result_id)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_validation_checks_priority
+            ON validation_checks(priority, passed)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_intervention_queue_status
+            ON human_intervention_queue(status)
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_intervention_queue_priority
+            ON human_intervention_queue(priority, status)
+        """)
+
         # Migrate existing database: add new columns if they don't exist
         self._migrate_database()
 
@@ -1991,6 +2150,535 @@ class Database:
         }
 
         return export_data
+
+    # ========================================
+    # PDF Forms Operations
+    # ========================================
+
+    def add_pdf_form_record(self,
+                           patient_id: int,
+                           visit_date: str,
+                           form_type: str,
+                           template_name: str,
+                           pdf_filename: str,
+                           pdf_local_path: Optional[str] = None,
+                           metadata: Optional[str] = None) -> int:
+        """Add a PDF form generation record.
+
+        Args:
+            patient_id: Patient database ID
+            visit_date: Visit date
+            form_type: Type of form (progress_note, intake_form, etc.)
+            template_name: PDF template name
+            pdf_filename: Generated PDF filename
+            pdf_local_path: Local filesystem path
+            metadata: JSON metadata
+
+        Returns:
+            ID of created record
+        """
+        self.cursor.execute("""
+            INSERT INTO pdf_forms_generated
+            (patient_id, visit_date, form_type, template_name, pdf_filename,
+             pdf_local_path, metadata, generation_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'generated')
+        """, (patient_id, visit_date, form_type, template_name, pdf_filename,
+              pdf_local_path, metadata))
+        self.conn.commit()
+        return self.cursor.lastrowid
+
+    def update_pdf_upload_status(self,
+                                 pdf_form_id: int,
+                                 onedrive_url: str,
+                                 onedrive_folder_name: str):
+        """Update PDF record after successful upload.
+
+        Args:
+            pdf_form_id: PDF form record ID
+            onedrive_url: OneDrive web URL
+            onedrive_folder_name: Folder name in OneDrive
+        """
+        self.cursor.execute("""
+            UPDATE pdf_forms_generated
+            SET onedrive_url = ?,
+                onedrive_folder_name = ?,
+                upload_status = 'uploaded',
+                uploaded_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (onedrive_url, onedrive_folder_name, pdf_form_id))
+        self.conn.commit()
+
+    def flag_pdf_for_review(self,
+                           pdf_form_id: int,
+                           reason: str):
+        """Flag a PDF form for manual review.
+
+        Args:
+            pdf_form_id: PDF form record ID
+            reason: Reason for flagging
+        """
+        self.cursor.execute("""
+            UPDATE pdf_forms_generated
+            SET flagged_for_review = 1,
+                flag_reason = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (reason, pdf_form_id))
+        self.conn.commit()
+
+    def get_pdf_forms_by_date_range(self,
+                                   start_date: str,
+                                   end_date: str) -> List[Dict]:
+        """Get PDF forms generated within date range.
+
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            List of PDF form records
+        """
+        self.cursor.execute("""
+            SELECT pf.*, p.name as patient_name
+            FROM pdf_forms_generated pf
+            JOIN patients p ON pf.patient_id = p.id
+            WHERE DATE(pf.visit_date) BETWEEN DATE(?) AND DATE(?)
+            ORDER BY pf.created_at DESC
+        """, (start_date, end_date))
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def check_pdf_already_generated(self,
+                                   patient_id: int,
+                                   visit_date: str,
+                                   form_type: str) -> bool:
+        """Check if PDF already generated for this visit.
+
+        Args:
+            patient_id: Patient ID
+            visit_date: Visit date
+            form_type: Form type
+
+        Returns:
+            True if already generated
+        """
+        self.cursor.execute("""
+            SELECT id FROM pdf_forms_generated
+            WHERE patient_id = ?
+              AND visit_date = ?
+              AND form_type = ?
+              AND upload_status = 'uploaded'
+        """, (patient_id, visit_date, form_type))
+        return self.cursor.fetchone() is not None
+
+    def get_flagged_pdfs(self, limit: int = 50) -> List[Dict]:
+        """Get PDFs flagged for manual review.
+
+        Args:
+            limit: Maximum number of records to return
+
+        Returns:
+            List of flagged PDF records
+        """
+        self.cursor.execute("""
+            SELECT pf.*, p.name as patient_name
+            FROM pdf_forms_generated pf
+            JOIN patients p ON pf.patient_id = p.id
+            WHERE pf.flagged_for_review = 1
+            ORDER BY pf.created_at DESC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def get_pdf_generation_stats(self) -> Dict:
+        """Get PDF generation statistics.
+
+        Returns:
+            Dictionary with statistics by upload status
+        """
+        self.cursor.execute("""
+            SELECT
+                upload_status,
+                COUNT(*) as count
+            FROM pdf_forms_generated
+            GROUP BY upload_status
+        """)
+        stats = {row['upload_status']: row['count'] for row in self.cursor.fetchall()}
+
+        # Add flagged count
+        self.cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM pdf_forms_generated
+            WHERE flagged_for_review = 1
+        """)
+        stats['flagged'] = self.cursor.fetchone()['count']
+
+        return stats
+
+    # ========================================
+    # AI Processing Results Operations
+    # ========================================
+
+    def store_ai_processing_result(self, result: Dict, patient_name: Optional[str] = None,
+                                    visit_date: Optional[str] = None) -> int:
+        """Store multi-step AI processing result in database.
+
+        Args:
+            result: Processing result dictionary from OpenAIProcessor.multi_step_clean_patient_note()
+            patient_name: Optional patient name
+            visit_date: Optional visit date
+
+        Returns:
+            ID of created ai_processing_results record
+        """
+        import json
+        import time
+
+        # Get or create patient ID if name provided
+        patient_id = None
+        if patient_name:
+            patient_id = self.get_or_create_patient(patient_name)
+
+        # Extract validation report data
+        validation_report = result.get('validation_report')
+        if validation_report:
+            total_checks = validation_report.total_checks
+            passed_checks = validation_report.passed_checks
+            failed_checks = validation_report.failed_checks
+            critical_failures = validation_report.critical_failures
+            high_failures = validation_report.high_failures
+            medium_failures = validation_report.medium_failures
+            low_failures = validation_report.low_failures
+        else:
+            total_checks = passed_checks = failed_checks = 0
+            critical_failures = high_failures = medium_failures = low_failures = 0
+
+        # Store main processing result
+        self.cursor.execute("""
+            INSERT INTO ai_processing_results
+            (patient_id, patient_name, visit_date, raw_note, step1_note, step2_note,
+             final_cleaned_note, step2_status, verification_status, processing_status,
+             requires_human_intervention, human_intervention_reasons,
+             total_checks, passed_checks, failed_checks, critical_failures,
+             high_failures, medium_failures, low_failures, tokens_used,
+             model_used, error_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            patient_id,
+            patient_name,
+            visit_date,
+            result.get('raw_note', ''),
+            result.get('step1_note', ''),
+            result.get('step2_note', ''),
+            result.get('cleaned_note', ''),
+            result.get('step2_status', ''),
+            result.get('verification_status', ''),
+            result.get('processing_status', ''),
+            result.get('requires_human_intervention', False),
+            json.dumps(validation_report.human_intervention_reasons) if validation_report else None,
+            total_checks,
+            passed_checks,
+            failed_checks,
+            critical_failures,
+            high_failures,
+            medium_failures,
+            low_failures,
+            result.get('tokens_used', 0),
+            result.get('model_used', ''),
+            result.get('error', '')
+        ))
+        processing_result_id = self.cursor.lastrowid
+
+        # Store individual validation check results
+        if validation_report and hasattr(validation_report, 'validation_results'):
+            for check_result in validation_report.validation_results:
+                self.cursor.execute("""
+                    INSERT INTO validation_checks
+                    (processing_result_id, requirement_id, requirement_name, priority,
+                     passed, error_message, details)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    processing_result_id,
+                    check_result.requirement_id,
+                    check_result.requirement_name,
+                    check_result.priority,
+                    check_result.passed,
+                    check_result.error_message,
+                    check_result.details
+                ))
+
+        # Add to human intervention queue if needed
+        if result.get('requires_human_intervention'):
+            self.add_to_intervention_queue(
+                processing_result_id=processing_result_id,
+                patient_id=patient_id,
+                patient_name=patient_name,
+                visit_date=visit_date,
+                intervention_reasons=validation_report.human_intervention_reasons if validation_report else []
+            )
+
+        self.conn.commit()
+        return processing_result_id
+
+    def get_processing_result(self, result_id: int) -> Optional[Dict]:
+        """Get a processing result by ID with all validation checks.
+
+        Args:
+            result_id: ID of the processing result
+
+        Returns:
+            Dictionary with processing result and validation checks
+        """
+        self.cursor.execute("""
+            SELECT * FROM ai_processing_results WHERE id = ?
+        """, (result_id,))
+        row = self.cursor.fetchone()
+
+        if not row:
+            return None
+
+        result = dict(row)
+
+        # Get validation checks
+        self.cursor.execute("""
+            SELECT * FROM validation_checks
+            WHERE processing_result_id = ?
+            ORDER BY priority, id
+        """, (result_id,))
+        result['validation_checks'] = [dict(r) for r in self.cursor.fetchall()]
+
+        return result
+
+    def get_processing_results_by_patient(self, patient_name: str, limit: int = 50) -> List[Dict]:
+        """Get all processing results for a patient.
+
+        Args:
+            patient_name: Patient name
+            limit: Maximum number of results
+
+        Returns:
+            List of processing results
+        """
+        self.cursor.execute("""
+            SELECT * FROM ai_processing_results
+            WHERE patient_name = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (patient_name, limit))
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def get_processing_results_needing_review(self, limit: int = 100) -> List[Dict]:
+        """Get all processing results requiring human intervention.
+
+        Args:
+            limit: Maximum number of results
+
+        Returns:
+            List of processing results needing review
+        """
+        self.cursor.execute("""
+            SELECT * FROM ai_processing_results
+            WHERE requires_human_intervention = 1
+            AND reviewed_at IS NULL
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for r in self.cursor.fetchall()]
+
+    def mark_result_reviewed(self, result_id: int, reviewed_by: str, review_notes: Optional[str] = None):
+        """Mark a processing result as reviewed.
+
+        Args:
+            result_id: ID of the processing result
+            reviewed_by: Name/ID of reviewer
+            review_notes: Optional notes from review
+        """
+        self.cursor.execute("""
+            UPDATE ai_processing_results
+            SET reviewed_at = CURRENT_TIMESTAMP,
+                reviewed_by = ?,
+                review_notes = ?
+            WHERE id = ?
+        """, (reviewed_by, review_notes, result_id))
+        self.conn.commit()
+
+    # ========================================
+    # Human Intervention Queue Operations
+    # ========================================
+
+    def add_to_intervention_queue(self, processing_result_id: int,
+                                    patient_id: Optional[int] = None,
+                                    patient_name: Optional[str] = None,
+                                    visit_date: Optional[str] = None,
+                                    intervention_reasons: Optional[List[str]] = None,
+                                    priority: str = 'HIGH') -> int:
+        """Add a note to the human intervention queue.
+
+        Args:
+            processing_result_id: ID of the processing result
+            patient_id: Optional patient ID
+            patient_name: Optional patient name
+            visit_date: Optional visit date
+            intervention_reasons: List of reasons for intervention
+            priority: Priority level (CRITICAL, HIGH, MEDIUM, LOW)
+
+        Returns:
+            ID of created queue item
+        """
+        import json
+
+        reasons_json = json.dumps(intervention_reasons) if intervention_reasons else '[]'
+
+        self.cursor.execute("""
+            INSERT INTO human_intervention_queue
+            (processing_result_id, patient_id, patient_name, visit_date,
+             priority, intervention_reasons, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        """, (processing_result_id, patient_id, patient_name, visit_date,
+              priority, reasons_json))
+        self.conn.commit()
+        return self.cursor.lastrowid
+
+    def get_intervention_queue(self, status: Optional[str] = None,
+                               priority: Optional[str] = None,
+                               limit: int = 100) -> List[Dict]:
+        """Get items from the human intervention queue.
+
+        Args:
+            status: Filter by status (pending, assigned, resolved)
+            priority: Filter by priority (CRITICAL, HIGH, MEDIUM, LOW)
+            limit: Maximum number of items
+
+        Returns:
+            List of intervention queue items
+        """
+        query = "SELECT * FROM human_intervention_queue WHERE 1=1"
+        params = []
+
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+
+        if priority:
+            query += " AND priority = ?"
+            params.append(priority)
+
+        query += " ORDER BY priority DESC, created_at ASC LIMIT ?"
+        params.append(limit)
+
+        self.cursor.execute(query, params)
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def assign_intervention_item(self, queue_id: int, assigned_to: str):
+        """Assign an intervention queue item to a reviewer.
+
+        Args:
+            queue_id: ID of the queue item
+            assigned_to: Name/ID of person assigned
+        """
+        self.cursor.execute("""
+            UPDATE human_intervention_queue
+            SET status = 'assigned',
+                assigned_to = ?,
+                assigned_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (assigned_to, queue_id))
+        self.conn.commit()
+
+    def resolve_intervention_item(self, queue_id: int, resolution_notes: Optional[str] = None):
+        """Mark an intervention queue item as resolved.
+
+        Args:
+            queue_id: ID of the queue item
+            resolution_notes: Optional notes about resolution
+        """
+        self.cursor.execute("""
+            UPDATE human_intervention_queue
+            SET status = 'resolved',
+                resolved_at = CURRENT_TIMESTAMP,
+                resolution_notes = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (resolution_notes, queue_id))
+        self.conn.commit()
+
+    def get_intervention_queue_stats(self) -> Dict:
+        """Get statistics about the human intervention queue.
+
+        Returns:
+            Dictionary with queue statistics
+        """
+        self.cursor.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'assigned' THEN 1 ELSE 0 END) as assigned,
+                SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
+                SUM(CASE WHEN priority = 'CRITICAL' THEN 1 ELSE 0 END) as critical,
+                SUM(CASE WHEN priority = 'HIGH' THEN 1 ELSE 0 END) as high,
+                SUM(CASE WHEN priority = 'MEDIUM' THEN 1 ELSE 0 END) as medium,
+                SUM(CASE WHEN priority = 'LOW' THEN 1 ELSE 0 END) as low
+            FROM human_intervention_queue
+            WHERE status != 'resolved'
+        """)
+        return dict(self.cursor.fetchone())
+
+    # ========================================
+    # AI Processing Analytics
+    # ========================================
+
+    def get_processing_stats(self, days: int = 30) -> Dict:
+        """Get AI processing statistics for the last N days.
+
+        Args:
+            days: Number of days to include
+
+        Returns:
+            Dictionary with processing statistics
+        """
+        self.cursor.execute("""
+            SELECT
+                COUNT(*) as total_processed,
+                SUM(CASE WHEN processing_status = 'success' THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN processing_status = 'success_with_warnings' THEN 1 ELSE 0 END) as warning_count,
+                SUM(CASE WHEN processing_status = 'needs_review' THEN 1 ELSE 0 END) as needs_review_count,
+                SUM(CASE WHEN processing_status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+                SUM(CASE WHEN requires_human_intervention = 1 THEN 1 ELSE 0 END) as intervention_count,
+                SUM(tokens_used) as total_tokens,
+                AVG(tokens_used) as avg_tokens,
+                SUM(critical_failures) as total_critical_failures,
+                SUM(high_failures) as total_high_failures,
+                AVG(passed_checks * 100.0 / NULLIF(total_checks, 0)) as avg_pass_rate
+            FROM ai_processing_results
+            WHERE created_at >= datetime('now', '-' || ? || ' days')
+        """, (days,))
+        return dict(self.cursor.fetchone())
+
+    def get_validation_failure_summary(self, days: int = 30) -> List[Dict]:
+        """Get summary of most common validation failures.
+
+        Args:
+            days: Number of days to include
+
+        Returns:
+            List of validation failures with counts
+        """
+        self.cursor.execute("""
+            SELECT
+                vc.requirement_name,
+                vc.priority,
+                vc.error_message,
+                COUNT(*) as failure_count
+            FROM validation_checks vc
+            JOIN ai_processing_results apr ON vc.processing_result_id = apr.id
+            WHERE vc.passed = 0
+            AND apr.created_at >= datetime('now', '-' || ? || ' days')
+            GROUP BY vc.requirement_name, vc.priority, vc.error_message
+            ORDER BY failure_count DESC, vc.priority
+            LIMIT 20
+        """, (days,))
+        return [dict(row) for row in self.cursor.fetchall()]
 
     def close(self):
         """Close database connection"""

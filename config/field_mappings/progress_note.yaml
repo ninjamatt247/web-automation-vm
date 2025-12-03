@@ -1,0 +1,107 @@
+# Progress Note PDF Field Mapping
+# Maps database columns to PDF form fields
+
+template: progress_note.pdf
+version: 1.0
+description: Maps patient visit data to progress note PDF template
+
+fields:
+  # Patient Demographics
+  patient_name:
+    source: name
+    transform: upper
+    default: ""
+    description: "Patient full name"
+
+  patient_dob:
+    source: date_of_birth
+    transform: date:%m/%d/%Y
+    default: ""
+    description: "Patient date of birth"
+
+  patient_id:
+    source: freed_patient_id
+    default: ""
+    description: "Patient identifier"
+
+  # Visit Information
+  visit_date:
+    source: visit_date
+    transform: date:%m/%d/%Y
+    default: ""
+    description: "Date of visit/appointment"
+
+  visit_time:
+    source: visit_time
+    default: ""
+    description: "Time of visit"
+
+  provider_name:
+    source: rendering_provider_name
+    default: ""
+    description: "Rendering provider name"
+
+  location:
+    source: location_name
+    default: ""
+    description: "Visit location/facility"
+
+  # Clinical Content
+  chief_complaint:
+    source: chief_complaint
+    transform: truncate:200
+    default: ""
+    description: "Chief complaint"
+
+  history_present_illness:
+    source: history_present_illness
+    transform: truncate:1000
+    default: ""
+    description: "History of present illness"
+
+  assessment:
+    source: assessment
+    transform: truncate:500
+    default: ""
+    description: "Clinical assessment"
+
+  plan:
+    source: plan
+    transform: truncate:500
+    default: ""
+    description: "Treatment plan"
+
+  medications:
+    source: medications
+    transform: truncate:500
+    default: ""
+    description: "Current medications"
+
+  mental_status_exam:
+    source: mental_status_exam
+    transform: truncate:500
+    default: ""
+    description: "Mental status examination findings"
+
+  # Diagnosis Codes
+  diagnosis_code_1:
+    source: icd10_code_1
+    default: ""
+    description: "Primary ICD-10 diagnosis code"
+
+  diagnosis_code_2:
+    source: icd10_code_2
+    default: ""
+    description: "Secondary ICD-10 diagnosis code"
+
+  # Additional Fields
+  note_type:
+    source: note_type
+    default: "Progress Note"
+    description: "Type of clinical note"
+
+  signature_date:
+    source: first_signed_at
+    transform: date:%m/%d/%Y
+    default: ""
+    description: "Date note was signed"

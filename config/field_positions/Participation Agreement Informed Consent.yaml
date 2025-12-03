@@ -1,0 +1,137 @@
+# Field positions for Participation Agreement Informed Consent.pdf
+# Coordinates are in points from bottom-left (PDF standard)
+
+template: "Participation Agreement Informed Consent.pdf"
+description: "Participation Agreement and Informed Consent"
+
+pages:
+  0:
+    # Patient Information
+    patient_name:
+      x: 100
+      y: 720
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    date_of_birth:
+      x: 400
+      y: 720
+      font: "Helvetica"
+      size: 10
+
+    # Program Information
+    program_name:
+      x: 100
+      y: 680
+      font: "Helvetica"
+      size: 10
+      max_width: 300
+
+    enrollment_date:
+      x: 450
+      y: 680
+      font: "Helvetica"
+      size: 10
+
+    # Contact Information
+    patient_phone:
+      x: 100
+      y: 650
+      font: "Helvetica"
+      size: 10
+
+    patient_email:
+      x: 250
+      y: 650
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    # Emergency Contact
+    emergency_contact_name:
+      x: 100
+      y: 620
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    emergency_contact_phone:
+      x: 350
+      y: 620
+      font: "Helvetica"
+      size: 10
+
+    # Agreement Terms (acknowledgments)
+    terms_acknowledged:
+      x: 120
+      y: 560
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    privacy_acknowledged:
+      x: 120
+      y: 520
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    responsibilities_acknowledged:
+      x: 120
+      y: 480
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    # Provider/Facility Information
+    provider_name:
+      x: 100
+      y: 430
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    facility_name:
+      x: 100
+      y: 400
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    # Signature Section
+    patient_signature:
+      x: 100
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    signature_date:
+      x: 350
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    guardian_signature:
+      x: 100
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    guardian_date:
+      x: 350
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    provider_signature:
+      x: 100
+      y: 90
+      font: "Helvetica"
+      size: 10
+
+    provider_date:
+      x: 350
+      y: 90
+      font: "Helvetica"
+      size: 10

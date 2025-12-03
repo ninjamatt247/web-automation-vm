@@ -1,0 +1,68 @@
+# Field mapping for Informed Consent BOP - Telehealth.pdf
+# Maps database fields to PDF form fields
+
+template: "Informed Consent BOP - Telehealth.pdf"
+description: "Informed Consent for Telehealth Services"
+
+fields:
+  # Patient Information
+  "Client Name":
+    source: "patient.name"
+    required: true
+
+  "Register Number":
+    source: "patient.registration_number"
+    required: true
+
+  "DOB":
+    source: "patient.date_of_birth"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Phone No":
+    source: "patient.phone"
+    required: false
+
+  # Service Types (Checkboxes)
+  "Mental Health":
+    source: "service.mental_health"
+    required: false
+
+  "Substance Use Disorder":
+    source: "service.substance_use"
+    required: false
+
+  "MAT":
+    source: "service.mat"
+    required: false
+
+  "Sex Offender":
+    source: "service.sex_offender"
+    required: false
+
+  # Consent Status
+  "I hereby consent to a telehealth assessment andor treatment and":
+    source: "consent.telehealth_accepted"
+    required: false
+
+  "I refuse a telehealth assessment andor treatment":
+    source: "consent.telehealth_refused"
+    required: false
+
+  # Signatures
+  "Client Signature":
+    source: "signature.client"
+    required: false
+
+  "Todays Date":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Contract Staff Witness Signature":
+    source: "signature.witness"
+    required: false
+
+  "Contract Staff Witness Printed Name":
+    source: "staff.witness_name"
+    required: false

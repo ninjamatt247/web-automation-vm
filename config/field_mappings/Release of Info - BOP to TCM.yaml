@@ -1,0 +1,53 @@
+# Field mapping for Release of Info - BOP to TCM.pdf
+# Maps database fields to PDF form fields
+
+template: "Release of Info - BOP to TCM.pdf"
+description: "Release of Information from BOP to TCM"
+
+fields:
+  "Client Name":
+    source: "patient.name"
+    required: true
+
+  "Registration Number":
+    source: "patient.registration_number"
+    required: true
+
+  "Register Number Date of Birth":
+    source: "patient.date_of_birth"
+    transform: "date:%m/%d/%Y"
+    required: false
+
+  "Phone Number":
+    source: "patient.phone"
+    required: false
+
+  "TodayDate":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Agency release":
+    source: "release.from_agency"
+    required: false
+
+  "release_info_to":
+    source: "release.to_agency"
+    required: false
+
+  "Contract Staff Witness Printed Name":
+    source: "staff.witness_name"
+    required: false
+
+  # Consent acknowledgments
+  "I understand this authorization is voluntary and that I may refuse to sign this authorization":
+    source: "consent.voluntary_acknowledgment"
+    required: false
+
+  "I understand that my program treatment records may be protected under the federal regulations governing":
+    source: "consent.privacy_acknowledgment"
+    required: false
+
+  "I understand that this authorization will expire one year from the treatment authorization end date on":
+    source: "consent.expiration_acknowledgment"
+    required: false

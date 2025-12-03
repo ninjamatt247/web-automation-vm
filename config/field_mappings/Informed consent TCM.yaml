@@ -1,0 +1,27 @@
+# Field mapping for Informed consent TCM.pdf
+# Maps database fields to PDF form fields
+
+template: "Informed consent TCM.pdf"
+description: "Informed Consent for Transitional Care Management"
+
+# Note: This form has minimal fields - patient/staff signatures and dates
+# Most fields will be filled directly by passing exact field names in data
+
+fields:
+  "s NameSignature":
+    source: "patient.name"
+    required: false
+
+  "Date":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Staff Signature":
+    source: "staff.signature"
+    required: false
+
+  "Date_2":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: false

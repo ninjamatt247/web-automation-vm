@@ -63,6 +63,24 @@ class AppConfig:
     osmind_max_retries: int
     osmind_default_start_date: str
 
+    # PDF Generation Settings
+    pdf_template_dir: str
+    pdf_output_dir: str
+    pdf_field_mappings_dir: str
+    pdf_field_positions_dir: str
+    pdf_batch_size: int
+    pdf_retry_attempts: int
+
+    # Microsoft OneDrive Settings
+    onedrive_tenant_id: str
+    onedrive_client_id: str
+    onedrive_client_secret: str
+    onedrive_root_folder: str
+    onedrive_upload_timeout: int
+
+    # Scheduler Settings
+    pdf_scheduler_enabled: bool
+
     @classmethod
     def from_env(cls) -> "AppConfig":
         """Load configuration from environment variables."""
@@ -106,7 +124,25 @@ class AppConfig:
             osmind_batch_size=int(os.getenv("OSMIND_BATCH_SIZE", "50")),
             osmind_rate_limit_delay=int(os.getenv("OSMIND_RATE_LIMIT_DELAY", "1")),
             osmind_max_retries=int(os.getenv("OSMIND_MAX_RETRIES", "3")),
-            osmind_default_start_date=os.getenv("OSMIND_DEFAULT_START_DATE", "2025-01-01")
+            osmind_default_start_date=os.getenv("OSMIND_DEFAULT_START_DATE", "2025-01-01"),
+
+            # PDF Generation
+            pdf_template_dir=os.getenv("PDF_TEMPLATE_DIR", "config/pdf_templates"),
+            pdf_output_dir=os.getenv("PDF_OUTPUT_DIR", "data/pdf_output"),
+            pdf_field_mappings_dir=os.getenv("PDF_FIELD_MAPPINGS_DIR", "config/field_mappings"),
+            pdf_field_positions_dir=os.getenv("PDF_FIELD_POSITIONS_DIR", "config/field_positions"),
+            pdf_batch_size=int(os.getenv("PDF_BATCH_SIZE", "50")),
+            pdf_retry_attempts=int(os.getenv("PDF_RETRY_ATTEMPTS", "3")),
+
+            # Microsoft OneDrive
+            onedrive_tenant_id=os.getenv("ONEDRIVE_TENANT_ID", ""),
+            onedrive_client_id=os.getenv("ONEDRIVE_CLIENT_ID", ""),
+            onedrive_client_secret=os.getenv("ONEDRIVE_CLIENT_SECRET", ""),
+            onedrive_root_folder=os.getenv("ONEDRIVE_ROOT_FOLDER", "/PDF_Forms"),
+            onedrive_upload_timeout=int(os.getenv("ONEDRIVE_UPLOAD_TIMEOUT", "300")),
+
+            # Scheduler
+            pdf_scheduler_enabled=os.getenv("PDF_SCHEDULER_ENABLED", "false").lower() == "true"
         )
 
     def validate(self) -> list[str]:

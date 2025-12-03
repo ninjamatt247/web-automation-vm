@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@mui/x-data-grid-premium": "^8.20.0",
+    "@mui/x-license": "^8.19.0"
+  }
+}

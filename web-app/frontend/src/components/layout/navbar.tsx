@@ -20,7 +20,10 @@ export const NAV_LINKS = [
   { label: 'Freed Notes', href: '/notes' },
   { label: 'Osmind Notes', href: '/osmind-notes' },
   { label: 'Comparison', href: '/comparison' },
+  { label: 'Review', href: '/review' },
+  { label: 'PDF Forms', href: '/pdf-forms' },
   { label: 'Process', href: '/process' },
+  { label: 'Settings', href: '/settings' },
   { label: 'Dev Tools', href: '/dev-tools' },
 ];
 

@@ -36,7 +36,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite and React default ports
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -217,31 +217,47 @@ async def root():
     }
 
 @app.get("/api/notes")
-async def get_notes(limit: int = 1000):
-    """Get all processed notes from database with freed note details"""
+async def get_notes(limit: int = 0):
+    """Get all notes from freed_notes table with patient info (limit=0 returns all)"""
     try:
-        # Query notes with joined freed_notes to get all fields
-        # Order by visit_date DESC to show most recent patient visits first
+        # Query from freed_notes table with patient information
+        # Order by visit_date DESC to show most recent visits first
         if limit > 0:
             db.cursor.execute("""
-                SELECT n.*, p.name as patient_name,
-                       fn.description, fn.note_text as freed_note_text, fn.full_text,
-                       fn.sections, fn.tags, fn.note_length, fn.visit_date as fn_visit_date
-                FROM notes n
-                JOIN patients p ON n.patient_id = p.id
-                LEFT JOIN freed_notes fn ON n.freed_note_id = fn.id
+                SELECT
+                    fn.id,
+                    p.name as patient_name,
+                    fn.visit_date,
+                    fn.description,
+                    fn.note_text,
+                    fn.full_text,
+                    fn.sections,
+                    fn.tags,
+                    fn.note_length,
+                    fn.freed_visit_id,
+                    fn.extracted_at
+                FROM freed_notes fn
+                JOIN patients p ON fn.patient_id = p.id
                 ORDER BY fn.visit_date DESC
                 LIMIT ?
             """, (limit,))
         else:
             # No limit - return all notes
             db.cursor.execute("""
-                SELECT n.*, p.name as patient_name,
-                       fn.description, fn.note_text as freed_note_text, fn.full_text,
-                       fn.sections, fn.tags, fn.note_length, fn.visit_date as fn_visit_date
-                FROM notes n
-                JOIN patients p ON n.patient_id = p.id
-                LEFT JOIN freed_notes fn ON n.freed_note_id = fn.id
+                SELECT
+                    fn.id,
+                    p.name as patient_name,
+                    fn.visit_date,
+                    fn.description,
+                    fn.note_text,
+                    fn.full_text,
+                    fn.sections,
+                    fn.tags,
+                    fn.note_length,
+                    fn.freed_visit_id,
+                    fn.extracted_at
+                FROM freed_notes fn
+                JOIN patients p ON fn.patient_id = p.id
                 ORDER BY fn.visit_date DESC
             """)
         notes = [dict(row) for row in db.cursor.fetchall()]
@@ -251,24 +267,26 @@ async def get_notes(limit: int = 1000):
         for note in notes:
             formatted_notes.append({
                 'id': note['id'],
-                'patient_name': note['patient_name'],
+                'patient_name': note.get('patient_name', ''),
                 'visit_date': note.get('visit_date', ''),
+                'note_date': note.get('visit_date', ''),
                 'description': note.get('description', ''),
-                'note_text': note.get('freed_note_text', ''),
+                'note_text': note.get('full_text', '') or note.get('note_text', ''),
                 'full_text': note.get('full_text', ''),
                 'sections': note.get('sections', ''),
                 'tags': note.get('tags', ''),
                 'note_length': note.get('note_length', 0),
-                'cleaned_note': note.get('final_note', ''),
-                'original_note': note.get('original_freed_note', ''),
-                'orig_note': note.get('orig_note', ''),
-                'processing_status': note.get('processing_status', ''),
-                'ai_enhanced': note.get('ai_enhanced', False),
-                'uploaded_to_osmind': note.get('uploaded_to_osmind', False),
-                'synced': note.get('synced', ''),
-                'sent_to_ai_date': note.get('sent_to_ai_date', ''),
-                'manual_match': note.get('manual_match', False),
-                'created_at': note.get('created_at', '')
+                'cleaned_note': note.get('full_text', '') or note.get('note_text', ''),
+                'original_note': note.get('full_text', ''),
+                'orig_note': note.get('full_text', ''),
+                'freed_visit_id': note.get('freed_visit_id', ''),
+                'extracted_at': note.get('extracted_at', ''),
+                'processing_status': 'extracted',
+                'ai_enhanced': False,
+                'uploaded_to_osmind': False,
+                'synced': '',
+                'sent_to_ai_date': '',
+                'manual_match': False
             })
         return {"notes": formatted_notes, "count": len(formatted_notes)}
     except Exception as e:
@@ -321,8 +339,8 @@ async def get_note(note_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch note: {str(e)}")
 
 @app.get("/api/osmind-notes")
-async def get_osmind_notes(limit: int = 100, offset: int = 0):
-    """Get Osmind notes from database with pagination"""
+async def get_osmind_notes(limit: int = 0, offset: int = 0):
+    """Get Osmind notes from database with pagination (limit=0 returns all)"""
     try:
         # Get total count
         db.cursor.execute("""
@@ -333,13 +351,22 @@ async def get_osmind_notes(limit: int = 100, offset: int = 0):
         total = db.cursor.fetchone()['total']
 
         # Query osmind_notes table with pagination
-        db.cursor.execute("""
-            SELECT o.*, p.name as patient_name
-            FROM osmind_notes o
-            JOIN patients p ON o.patient_id = p.id
-            ORDER BY o.created_at DESC
-            LIMIT ? OFFSET ?
-        """, (limit, offset))
+        if limit > 0:
+            db.cursor.execute("""
+                SELECT o.*, p.name as patient_name
+                FROM osmind_notes o
+                JOIN patients p ON o.patient_id = p.id
+                ORDER BY o.created_at DESC
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
+        else:
+            # No limit - return all notes
+            db.cursor.execute("""
+                SELECT o.*, p.name as patient_name
+                FROM osmind_notes o
+                JOIN patients p ON o.patient_id = p.id
+                ORDER BY o.created_at DESC
+            """)
         notes = [dict(row) for row in db.cursor.fetchall()]
 
         # Format notes to match expected frontend structure
@@ -497,6 +524,143 @@ async def get_stats(
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+@app.get("/api/kpis")
+async def get_kpis(
+    filter_type: str = "all",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get comprehensive KPI metrics with optional date filtering"""
+    try:
+        # Parse date range
+        date_filter_sql = ""
+        params = []
+
+        if filter_type != "all":
+            start, end = get_date_range(filter_type, start_date, end_date)
+            if start and end:
+                date_filter_sql = " WHERE DATE(created_at) BETWEEN ? AND ?"
+                params = [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')]
+
+        # Pipeline Metrics
+        freed_total_query = f"SELECT COUNT(*) as count FROM freed_notes{date_filter_sql}"
+        freed_total = db.conn.execute(freed_total_query, params).fetchone()[0]
+
+        matched_query = f"SELECT COUNT(*) as count FROM combined_notes{date_filter_sql}"
+        matched = db.conn.execute(matched_query, params).fetchone()[0]
+
+        ai_processed_query = f"SELECT COUNT(*) as count FROM combined_notes WHERE ai_enhanced = 1{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        ai_processed = db.conn.execute(ai_processed_query, params).fetchone()[0]
+
+        uploaded_query = f"SELECT COUNT(*) as count FROM combined_notes WHERE uploaded_to_osmind = 1{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        uploaded = db.conn.execute(uploaded_query, params).fetchone()[0]
+
+        # Match Quality Metrics
+        high_conf_query = f"SELECT COUNT(*) as count FROM combined_notes WHERE match_confidence >= 0.9{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        high_conf = db.conn.execute(high_conf_query, params).fetchone()[0]
+
+        med_conf_query = f"SELECT COUNT(*) as count FROM combined_notes WHERE match_confidence >= 0.7 AND match_confidence < 0.9{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        med_conf = db.conn.execute(med_conf_query, params).fetchone()[0]
+
+        low_conf_query = f"SELECT COUNT(*) as count FROM combined_notes WHERE match_confidence < 0.7{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        low_conf = db.conn.execute(low_conf_query, params).fetchone()[0]
+
+        avg_conf_query = f"SELECT AVG(match_confidence) as avg FROM combined_notes{date_filter_sql}"
+        avg_conf_result = db.conn.execute(avg_conf_query, params).fetchone()
+        avg_conf = round(avg_conf_result[0], 3) if avg_conf_result[0] else 0
+
+        # Tier distribution
+        tier_query = f"SELECT match_tier, COUNT(*) as count FROM combined_notes{date_filter_sql} GROUP BY match_tier"
+        tier_results = db.conn.execute(tier_query, params).fetchall()
+        tier_dist = {f"tier_{row[0]}": row[1] for row in tier_results}
+
+        # Clinical Metrics
+        patients_query = f"SELECT COUNT(DISTINCT patient_id) as count FROM freed_notes{date_filter_sql}"
+        unique_patients = db.conn.execute(patients_query, params).fetchone()[0]
+
+        notes_per_patient = round(freed_total / unique_patients, 2) if unique_patients > 0 else 0
+
+        signed_query = f"SELECT COUNT(*) as count FROM osmind_notes WHERE is_signed = 1{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        signed_notes = db.conn.execute(signed_query, params).fetchone()[0]
+
+        avg_freed_length_query = f"SELECT AVG(LENGTH(full_text)) as avg FROM freed_notes{date_filter_sql}"
+        avg_freed_length_result = db.conn.execute(avg_freed_length_query, params).fetchone()
+        avg_freed_length = int(avg_freed_length_result[0]) if avg_freed_length_result[0] else 0
+
+        avg_osmind_length_query = f"SELECT AVG(LENGTH(full_text)) as avg FROM osmind_notes{date_filter_sql}"
+        avg_osmind_length_result = db.conn.execute(avg_osmind_length_query, params).fetchone()
+        avg_osmind_length = int(avg_osmind_length_result[0]) if avg_osmind_length_result[0] else 0
+
+        # AI Processing Metrics (if data exists)
+        ai_total_query = f"SELECT COUNT(*) as count FROM ai_processing_results{date_filter_sql}"
+        ai_total = db.conn.execute(ai_total_query, params).fetchone()[0]
+
+        ai_intervention_query = f"SELECT COUNT(*) as count FROM ai_processing_results WHERE requires_human_intervention = 1{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        ai_intervention = db.conn.execute(ai_intervention_query, params).fetchone()[0]
+
+        ai_critical_query = f"SELECT COUNT(*) as count FROM ai_processing_results WHERE critical_failures > 0{' AND ' + date_filter_sql[7:] if date_filter_sql else ''}"
+        ai_critical = db.conn.execute(ai_critical_query, params).fetchone()[0]
+
+        ai_tokens_query = f"SELECT AVG(tokens_used) as avg FROM ai_processing_results{date_filter_sql}"
+        ai_tokens_result = db.conn.execute(ai_tokens_query, params).fetchone()
+        ai_avg_tokens = int(ai_tokens_result[0]) if ai_tokens_result[0] else 0
+
+        ai_duration_query = f"SELECT AVG(processing_duration_ms) as avg FROM ai_processing_results{date_filter_sql}"
+        ai_duration_result = db.conn.execute(ai_duration_query, params).fetchone()
+        ai_avg_duration = int(ai_duration_result[0]) if ai_duration_result[0] else 0
+
+        # Efficiency Metrics
+        completion_rate = round((uploaded / freed_total * 100), 2) if freed_total > 0 else 0
+        intervention_rate = round((ai_intervention / ai_total * 100), 2) if ai_total > 0 else 0
+        success_rate = round(((ai_total - ai_critical) / ai_total * 100), 2) if ai_total > 0 else 0
+
+        # Compile response
+        return {
+            "date_range": {
+                "filter_type": filter_type,
+                "start": start.strftime('%Y-%m-%d') if filter_type != "all" and start else None,
+                "end": end.strftime('%Y-%m-%d') if filter_type != "all" and end else None
+            },
+            "pipeline": {
+                "total_freed_notes": freed_total,
+                "matched_notes": matched,
+                "ai_processed": ai_processed,
+                "uploaded_to_osmind": uploaded,
+                "pending_processing": matched - ai_processed,
+                "requiring_review": ai_intervention,
+                "unmatched_freed": freed_total - matched
+            },
+            "match_quality": {
+                "high_confidence": high_conf,
+                "medium_confidence": med_conf,
+                "low_confidence": low_conf,
+                "avg_confidence": avg_conf,
+                "tier_distribution": tier_dist,
+                "match_rate": round((matched / freed_total * 100), 2) if freed_total > 0 else 0
+            },
+            "ai_processing": {
+                "total_processed": ai_total,
+                "success_rate": success_rate,
+                "intervention_rate": intervention_rate,
+                "critical_failures": ai_critical,
+                "avg_tokens": ai_avg_tokens,
+                "avg_processing_ms": ai_avg_duration
+            },
+            "clinical": {
+                "notes_per_patient": notes_per_patient,
+                "signed_notes": signed_notes,
+                "avg_note_length_freed": avg_freed_length,
+                "avg_note_length_osmind": avg_osmind_length,
+                "unique_patients": unique_patients
+            },
+            "efficiency": {
+                "completion_rate": completion_rate,
+                "match_success_rate": round((high_conf / matched * 100), 2) if matched > 0 else 0
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get KPIs: {str(e)}")
 
 @app.get("/api/comparison")
 async def get_comparison():
@@ -1527,6 +1691,202 @@ async def delete_row(table: str, request: DeleteRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete row: {str(e)}")
+
+# ==============================================================================
+# FUZZY MATCHING API ENDPOINTS
+# ==============================================================================
+
+# Import fuzzy matching modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from src.matchers.note_matcher import NoteMatcher
+from src.utils.match_reporter import MatchReporter
+from src.utils.match_validator import MatchValidator
+
+# Store matching state in memory (for production, use Redis or database)
+matching_state = {
+    "running": False,
+    "results": None,
+    "error": None,
+    "started_at": None,
+    "completed_at": None
+}
+
+class FuzzyMatchRequest(BaseModel):
+    min_tier: int = 1
+    tier_limit: int = 7
+    auto_match_threshold: float = 0.70
+    dry_run: bool = False
+
+@app.post("/api/fuzzy-match/start")
+async def start_fuzzy_matching(request: FuzzyMatchRequest):
+    """Start fuzzy matching process"""
+    global matching_state
+
+    if matching_state["running"]:
+        raise HTTPException(status_code=400, detail="Matching already in progress")
+
+    # Reset state
+    matching_state = {
+        "running": True,
+        "results": None,
+        "error": None,
+        "started_at": datetime.now().isoformat(),
+        "completed_at": None,
+        "progress": "Initializing..."
+    }
+
+    # Run matching in background using asyncio
+    import asyncio
+    asyncio.create_task(run_fuzzy_matching_task(request))
+
+    return {"status": "started", "message": "Fuzzy matching started"}
+
+async def run_fuzzy_matching_task(request: FuzzyMatchRequest):
+    """Background task to run fuzzy matching"""
+    global matching_state
+
+    try:
+        matching_state["progress"] = "Validating database..."
+
+        # Get database path
+        db_path = Path(__file__).parent / "medical_notes.db"
+
+        # Phase 1: Validation
+        validator = MatchValidator(str(db_path))
+
+        schema_result = validator.validate_database_schema()
+        if not schema_result['valid']:
+            matching_state["running"] = False
+            matching_state["error"] = "Schema validation failed: " + "; ".join(schema_result['errors'])
+            matching_state["completed_at"] = datetime.now().isoformat()
+            validator.close()
+            return
+
+        data_result = validator.validate_data_availability()
+        if not data_result['valid']:
+            matching_state["running"] = False
+            matching_state["error"] = "Data validation failed: " + "; ".join(data_result['warnings'])
+            matching_state["completed_at"] = datetime.now().isoformat()
+            validator.close()
+            return
+
+        validator.close()
+
+        # Phase 2: Matching
+        matching_state["progress"] = f"Matching notes (Tiers {request.min_tier}-{request.tier_limit})..."
+
+        matcher = NoteMatcher(
+            db_path=str(db_path),
+            skip_existing=True,
+            skip_has_freed_content=True,
+            auto_match_threshold=request.auto_match_threshold,
+            min_tier=request.min_tier
+        )
+
+        results = matcher.match_all_notes(
+            tier_limit=request.tier_limit,
+            dry_run=request.dry_run
+        )
+
+        matcher.close()
+
+        # Phase 3: Generate report
+        matching_state["progress"] = "Generating reports..."
+
+        reporter = MatchReporter()
+        summary = reporter.generate_summary(results)
+
+        # Export CSVs to data directory
+        data_dir = Path(__file__).parent.parent.parent / "data"
+        data_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        all_matches_path = data_dir / f"all_matches_{timestamp}.csv"
+        low_conf_path = data_dir / f"low_confidence_{timestamp}.csv"
+
+        reporter.export_all_matches(results, str(all_matches_path))
+        low_conf_count = reporter.export_low_confidence(results, str(low_conf_path), threshold=0.75)
+
+        # Store results
+        matching_state["results"] = {
+            "total_freed": results.total_freed,
+            "total_osmind": results.total_osmind,
+            "matched": results.matched,
+            "unmatched_freed": results.unmatched_freed,
+            "tier_distribution": results.tier_distribution,
+            "confidence_stats": results.confidence_stats,
+            "low_confidence_count": low_conf_count,
+            "all_matches_file": all_matches_path.name,
+            "low_confidence_file": low_conf_path.name if low_conf_count > 0 else None,
+            "summary": summary,
+            "dry_run": request.dry_run
+        }
+
+        matching_state["running"] = False
+        matching_state["completed_at"] = datetime.now().isoformat()
+        matching_state["progress"] = "Complete"
+
+    except Exception as e:
+        logger.error(f"Fuzzy matching failed: {e}", exc_info=True)
+        matching_state["running"] = False
+        matching_state["error"] = str(e)
+        matching_state["completed_at"] = datetime.now().isoformat()
+
+@app.get("/api/fuzzy-match/status")
+async def get_fuzzy_match_status():
+    """Get current status of fuzzy matching"""
+    return matching_state
+
+@app.get("/api/fuzzy-match/download/{filename}")
+async def download_fuzzy_match_file(filename: str):
+    """Download CSV result file"""
+    from fastapi.responses import FileResponse
+
+    # Security: only allow specific CSV files
+    if not filename.endswith('.csv') or '..' in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    data_dir = Path(__file__).parent.parent.parent / "data"
+    file_path = data_dir / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type='text/csv'
+    )
+
+# ==============================================================================
+# END FUZZY MATCHING API ENDPOINTS
+# ==============================================================================
+
+# ==============================================================================
+# AI SETTINGS API ENDPOINTS
+# ==============================================================================
+
+# Import settings routes
+from settings_routes import router as settings_router
+
+# Import review routes
+from review_routes import router as review_router
+
+# Import PDF routes
+from pdf_routes import router as pdf_router
+
+# Include settings routes
+app.include_router(settings_router)
+
+# Include review routes
+app.include_router(review_router)
+
+# Include PDF routes
+app.include_router(pdf_router)
+
+# ==============================================================================
+# END AI SETTINGS API ENDPOINTS
+# ==============================================================================
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,11 +1,20 @@
 'use client';
 
 import axios from 'axios';
-import { Download, Mic, RefreshCw } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, Mic, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -24,6 +33,50 @@ interface Stats {
   comparison_timestamp?: string;
 }
 
+interface KPIData {
+  date_range: {
+    filter_type: string;
+    start: string | null;
+    end: string | null;
+  };
+  pipeline: {
+    total_freed_notes: number;
+    matched_notes: number;
+    ai_processed: number;
+    uploaded_to_osmind: number;
+    pending_processing: number;
+    requiring_review: number;
+    unmatched_freed: number;
+  };
+  match_quality: {
+    high_confidence: number;
+    medium_confidence: number;
+    low_confidence: number;
+    avg_confidence: number;
+    tier_distribution: Record<string, number>;
+    match_rate: number;
+  };
+  ai_processing: {
+    total_processed: number;
+    success_rate: number;
+    intervention_rate: number;
+    critical_failures: number;
+    avg_tokens: number;
+    avg_processing_ms: number;
+  };
+  clinical: {
+    notes_per_patient: number;
+    signed_notes: number;
+    avg_note_length_freed: number;
+    avg_note_length_osmind: number;
+    unique_patients: number;
+  };
+  efficiency: {
+    completion_rate: number;
+    match_success_rate: number;
+  };
+}
+
 interface FetchMessage {
   type: 'success' | 'error';
   text: string;
@@ -31,6 +84,7 @@ interface FetchMessage {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [kpis, setKpis] = useState<KPIData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState('all');
@@ -42,6 +96,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchStats();
+    fetchKPIs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType]);
 
@@ -60,11 +115,21 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchKPIs = async () => {
+    try {
+      const params = new URLSearchParams({ filter_type: filterType });
+      const response = await axios.get(`/api/kpis?${params}`);
+      setKpis(response.data);
+    } catch (err) {
+      console.error('Failed to load KPIs:', err);
+    }
+  };
+
   const handleFetchFromFreed = async () => {
     try {
       setFetchingFreed(true);
       setFetchMessage(null);
-      const response = await axios.post('/api/fetch-from-freed', { days: 7 });
+      const response = await axios.post('/api/fetch-from-freed', { days: 90 });
       setFetchMessage({
         type: 'success',
         text: response.data.message,
@@ -145,108 +210,415 @@ export default function DashboardPage() {
               <SelectItem value="month">Last Month</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={fetchStats} className="ml-auto" variant="outline">
+          <Button onClick={() => { fetchStats(); fetchKPIs(); }} className="ml-auto" variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
       </div>
 
-      {stats && (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Processed Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.total_processed || 0}</div>
-              </CardContent>
-            </Card>
+      {/* Comprehensive KPI Sections */}
+      {kpis && (
+        <div className="space-y-8">
+          {/* Pipeline Metrics */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold tracking-tight">Processing Pipeline</h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Total Notes</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {kpis.pipeline.total_freed_notes.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Active
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        In Freed.ai system
+                      </div>
+                      <div className="text-muted-foreground">
+                        Source notes awaiting processing
+                      </div>
+                    </CardFooter>
+                  </Card>
 
-            {stats.total_in_freed !== undefined && (
-              <Card className="border-green-500/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Notes in Freed.ai
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {stats.total_in_freed}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Matched Notes</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-blue-600 dark:text-blue-400 @[250px]/card:text-3xl">
+                        {kpis.pipeline.matched_notes.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          {kpis.match_quality.match_rate}%
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Strong match rate <TrendingUp className="h-4 w-4" />
+                      </div>
+                      <div className="text-muted-foreground">
+                        Successfully linked with Osmind
+                      </div>
+                    </CardFooter>
+                  </Card>
 
-            {stats.complete_in_osmind !== undefined && (
-              <Card className="border-green-500/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Complete in Osmind
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {stats.complete_in_osmind}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>AI Processed</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-purple-600 dark:text-purple-400 @[250px]/card:text-3xl">
+                        {kpis.pipeline.ai_processed.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-purple-600 dark:text-purple-400">
+                          Enhanced
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        AI enhancement complete
+                      </div>
+                      <div className="text-muted-foreground">
+                        Multi-step processing pipeline
+                      </div>
+                    </CardFooter>
+                  </Card>
 
-            {stats.missing_from_osmind !== undefined && (
-              <Card className="border-red-500/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Missing from Osmind
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {stats.missing_from_osmind}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Uploaded to Osmind</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-green-600 dark:text-green-400 @[250px]/card:text-3xl">
+                        {kpis.pipeline.uploaded_to_osmind.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-green-600 dark:text-green-400">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          {kpis.efficiency.completion_rate}%
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        End-to-end completion <TrendingUp className="h-4 w-4" />
+                      </div>
+                      <div className="text-muted-foreground">
+                        Successfully synced to EHR
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </div>
 
-            {stats.incomplete_in_osmind !== undefined && (
-              <Card className="border-yellow-500/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Incomplete in Osmind
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                    {stats.incomplete_in_osmind}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Pending Processing</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-yellow-600 dark:text-yellow-400 @[250px]/card:text-3xl">
+                        {kpis.pipeline.pending_processing.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-yellow-600 dark:text-yellow-400">
+                          Queued
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Awaiting AI processing
+                      </div>
+                      <div className="text-muted-foreground">
+                        Next in enhancement pipeline
+                      </div>
+                    </CardFooter>
+                  </Card>
 
-            {stats.to_process !== undefined && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Notes to Process
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.to_process}</div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Needs Review</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-orange-600 dark:text-orange-400 @[250px]/card:text-3xl">
+                        {kpis.pipeline.requiring_review.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-orange-600 dark:text-orange-400">
+                          Action Required
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Manual intervention needed
+                      </div>
+                      <div className="text-muted-foreground">
+                        Low confidence matches
+                      </div>
+                    </CardFooter>
+                  </Card>
 
-          {stats.comparison_timestamp && (
-            <p className="text-sm text-muted-foreground">
-              Last comparison: {new Date(stats.comparison_timestamp).toLocaleString()}
-            </p>
-          )}
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Unmatched Notes</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-red-600 dark:text-red-400 @[250px]/card:text-3xl">
+                        {kpis.pipeline.unmatched_freed.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-red-600 dark:text-red-400">
+                          <TrendingDown className="h-3 w-3 mr-1" />
+                          No Match
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        No Osmind counterpart
+                      </div>
+                      <div className="text-muted-foreground">
+                        May need manual matching
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </div>
+              </div>
 
-          {/* Voice Assistant Button */}
+            {/* Match Quality Metrics */}
+            <div className="space-y-4">
+                <h2 className="text-2xl font-bold tracking-tight">Match Quality</h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>High Confidence</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-green-600 dark:text-green-400 @[250px]/card:text-3xl">
+                        {kpis.match_quality.high_confidence.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-green-600 dark:text-green-400">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          ≥90%
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Excellent match quality
+                      </div>
+                      <div className="text-muted-foreground">
+                        Strong AI confidence scores
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Medium Confidence</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-blue-600 dark:text-blue-400 @[250px]/card:text-3xl">
+                        {kpis.match_quality.medium_confidence.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
+                          70-89%
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Good match quality
+                      </div>
+                      <div className="text-muted-foreground">
+                        Acceptable confidence range
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Low Confidence</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-orange-600 dark:text-orange-400 @[250px]/card:text-3xl">
+                        {kpis.match_quality.low_confidence.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-orange-600 dark:text-orange-400">
+                          <TrendingDown className="h-3 w-3 mr-1" />
+                          &lt;70%
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Needs verification
+                      </div>
+                      <div className="text-muted-foreground">
+                        May require manual review
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Avg Confidence</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {(kpis.match_quality.avg_confidence * 100).toFixed(1)}%
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Quality
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Overall match quality
+                      </div>
+                      <div className="text-muted-foreground">
+                        Across all matched notes
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </div>
+              </div>
+
+            {/* Clinical Metrics */}
+            <div className="space-y-4">
+                <h2 className="text-2xl font-bold tracking-tight">Clinical Metrics</h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Unique Patients</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {kpis.clinical.unique_patients.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline">
+                          Total
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Patient population
+                      </div>
+                      <div className="text-muted-foreground">
+                        Distinct individuals served
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Notes per Patient</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {kpis.clinical.notes_per_patient.toFixed(1)}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline">
+                          Avg
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Visit frequency
+                      </div>
+                      <div className="text-muted-foreground">
+                        Average encounters per patient
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Signed Notes</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums text-green-600 dark:text-green-400 @[250px]/card:text-3xl">
+                        {kpis.clinical.signed_notes.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline" className="text-green-600 dark:text-green-400">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Finalized
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Provider-approved
+                      </div>
+                      <div className="text-muted-foreground">
+                        Legally finalized documentation
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Avg Length (Freed)</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {kpis.clinical.avg_note_length_freed.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline">
+                          Source
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        Original note size
+                      </div>
+                      <div className="text-muted-foreground">
+                        Characters in Freed.ai notes
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="@container/card">
+                    <CardHeader>
+                      <CardDescription>Avg Length (Osmind)</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {kpis.clinical.avg_note_length_osmind.toLocaleString()}
+                      </CardTitle>
+                      <CardAction>
+                        <Badge variant="outline">
+                          Enhanced
+                        </Badge>
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                      <div className="line-clamp-1 flex gap-2 font-medium">
+                        AI-enhanced size
+                      </div>
+                      <div className="text-muted-foreground">
+                        Characters in Osmind EHR
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </div>
+              </div>
+            </div>
+      )}
+
+      {stats && stats.comparison_timestamp && (
+        <p className="text-sm text-muted-foreground">
+          Last comparison: {(() => {
+            try {
+              const date = new Date(stats.comparison_timestamp);
+              return isNaN(date.getTime()) ? 'Never' : date.toLocaleString();
+            } catch {
+              return 'Never';
+            }
+          })()}
+        </p>
+      )}
+
+      {/* Voice Assistant Button */}
+      <div className="space-y-6">
+        {stats && (
+          <>
           <div className="flex justify-center py-8">
             <Button
               size="lg"
@@ -337,8 +709,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </>
-      )}
+          </>
+        )}
+      </div>
 
       {/* Voice Assistant Modal - Placeholder */}
       {isModalOpen && (

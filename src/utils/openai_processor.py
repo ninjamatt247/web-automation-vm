@@ -11,18 +11,38 @@ import re
 class OpenAIProcessor:
     """Process and clean patient notes using OpenAI API."""
 
-    def __init__(self, config: AppConfig, use_multi_step: bool = True):
+    def __init__(self, config: AppConfig, use_multi_step: bool = True, store_in_db: bool = False, db=None):
         """Initialize OpenAI processor.
 
         Args:
             config: Application configuration containing API key
             use_multi_step: Enable multi-step verification (default: True)
+            store_in_db: Automatically store results in database (default: False)
+            db: Optional Database instance (will import if needed and store_in_db is True)
         """
         self.config = config
         self.client = OpenAI(api_key=config.openai_api_key)
         self.model = config.openai_model
         self.max_tokens = config.openai_max_tokens
         self.use_multi_step = use_multi_step
+        self.store_in_db = store_in_db
+        self.db = db
+
+        # Import database if needed
+        if store_in_db and db is None:
+            try:
+                # Try to import from web-app backend
+                import sys
+                from pathlib import Path
+                backend_path = Path(__file__).parent.parent.parent / "web-app" / "backend"
+                if str(backend_path) not in sys.path:
+                    sys.path.insert(0, str(backend_path))
+                from database import Database
+                self.db = Database()
+                logger.info("Database connection established for AI processing results")
+            except Exception as e:
+                logger.warning(f"Could not initialize database: {e}. Results will not be stored.")
+                self.store_in_db = False
 
         # Load prompt configuration and validator
         self.prompt_config = get_prompt_config()
@@ -264,6 +284,19 @@ Process the pasted note accordingly and output nothing else."""
                     f"Human intervention required: "
                     f"{', '.join(validation_report.human_intervention_reasons)}"
                 )
+
+            # Store in database if enabled
+            if self.store_in_db and self.db:
+                try:
+                    # Add raw_note and model to result for storage
+                    result['raw_note'] = raw_note
+                    result['model_used'] = self.model
+
+                    processing_id = self.db.store_ai_processing_result(result)
+                    result['db_processing_id'] = processing_id
+                    logger.info(f"Stored processing result in database (ID: {processing_id})")
+                except Exception as e:
+                    logger.error(f"Failed to store processing result in database: {e}")
 
             return result
 

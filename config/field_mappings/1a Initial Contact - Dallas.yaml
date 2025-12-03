@@ -1,0 +1,31 @@
+# Field mapping for 1a Initial Contact - Dallas.pdf
+# Maps database fields to PDF form fields
+
+template: "1a Initial Contact - Dallas.pdf"
+description: "Initial Contact Form - Dallas Location"
+
+fields:
+  # Patient Information
+  "INMATE NAME":
+    source: "patient.name"
+    required: true
+
+  "REG NO":
+    source: "patient.registration_number"
+    required: true
+
+  # Visit Date Information
+  "Date_of_initial":
+    source: "visit.date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Date":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  # Late Contact Reason (if applicable)
+  "REASON INITIAL CONTACT IS LATE":
+    source: "visit.late_reason"
+    required: false

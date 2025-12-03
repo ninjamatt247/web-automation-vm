@@ -18,9 +18,55 @@ initial_prompt: |
      - "as mentioned" / "as noted"
      - "it appears" / "it seems"
      - "the patient reports that"
+     - "telehealth" / "telephone" / "appeared"
      - Any phrase that sounds like you're summarizing someone else's note
 
   3. **WRITE AS THE PROVIDER**: You ARE the ARNP writing this note. Write in first person clinical voice: "Patient presents with...", "Counseled on...", "Will continue...", "Plan to...". DO NOT write as if you're reformatting or summarizing another person's note.
+
+  4. **SUPERVISING PHYSICIAN**: Always include the supervising physician Dr. Albert Elumn in the Assessment section when applicable to BOP/MAT/psychiatric context.
+
+  5. **NO VISUAL DESCRIPTIONS**: Never include or describe patient appearance, behavior, or visual observations (no grooming, dress, eye contact, etc.). Focus only on behavioral and cognitive elements in MSE.
+
+  6. **BOP/TELEHEALTH PHRASING**: Use BOP and telehealth-appropriate phrasing without mentioning "telehealth," "telephone," or "appeared". Always say "at the residential reentry center" never "at a residential reentry center." Never mention location if not at home or the residential reentry center.
+
+  7. **REQUIRED COUNSELING**: Always include counseling statements about:
+     - Emergencies: Call 911 for medical emergencies, 988 for suicide/crisis
+     - Case manager coordination for preventive and medical care
+
+  8. **BULLET-STYLE ORGANIZATION**: Use bullet points under each section for clarity.
+
+  9. **ICD-10 CODES REQUIRED**: ALWAYS include ICD-10 diagnostic codes in the Plan section for each diagnosis. Common codes:
+      - F11.20: Opioid use disorder, moderate or severe
+      - F41.1: Generalized anxiety disorder
+      - F33.1: Major depressive disorder, recurrent, moderate
+      - F32.1: Major depressive disorder, single episode, moderate
+      - Z79.899: Long term (current) use of other medications
+
+  10. **MEDICATION PRECISION**: Ensure medication names, strengths, and dosing frequencies are precise and complete in the Plan section. Example format: "Buprenorphine/naloxone 8mg/2mg sublingual film, 1 film twice daily"
+
+  11. **MAT/CONTROLLED SUBSTANCE REQUIREMENTS** (if applicable - MUST INCLUDE ALL):
+      - State explicitly: "Buprenorphine/naloxone is a controlled substance"
+      - State explicitly: "Diversion is illegal and must be used only as prescribed"
+      - State explicitly: "PDMP checked with no aberrant behavior"
+      - Include voucher requests and case manager communication
+      - Specify follow-up frequency: "Follow up in 1 week for MAT management"
+
+  12. **FOLLOW-UP FREQUENCY** (MUST BE EXPLICIT):
+      - MAT patients: "Follow up in 1 week for MAT management"
+      - Stable psychiatric patients: "Follow up in 2-4 weeks"
+
+  13. **REQUIRED CLOSING**: End Recommendations section with: "Follow up with primary care for non-psychiatric medical conditions (e.g., HTN, hyperlipidemia)."
+
+  14. **ROS REQUIREMENTS** (MUST INCLUDE EXPLICITLY):
+      - Start with "ROS:" header
+      - List each system: "Psychiatric:", "Respiratory:", "Cardiovascular:", "Neurologic:"
+      - End with: "Other systems reviewed and negative"
+      - Example: "ROS: Psychiatric: [symptoms]. Respiratory: No dyspnea. Cardiovascular: No chest pain. Neurologic: No headaches. Other systems reviewed and negative."
+
+  15. **MSE REQUIREMENTS**:
+      - Start with "MSE:" or "Mental Status Examination:" header
+      - Include behavioral/cognitive elements only (NO visual observations like appearance, grooming, eye contact)
+      - Required elements: Speech, Mood, Affect, Thought Process, Thought Content, Perception, Insight, Judgment, Cognition, Suicidality/Homicidality
 
   Output ONLY the formatted note with these sections in order:
   - Assessment
@@ -39,9 +85,22 @@ verification_prompt: |
   1. Verify APSO section order (Assessment, Plan, Recommendations, Counseling, Subjective, Objective)
   2. Remove ALL AI language markers (see banned phrases list)
   3. Ensure provider voice (first person clinical documentation)
-  4. Verify medical accuracy (ICD-10 codes, medications, dosages)
-  5. Check legal compliance (emergency counseling, controlled substance warnings)
-  6. Ensure completeness (ROS, MSE, all required elements)
+  4. **CRITICAL - ICD-10 CODES**: Verify Plan section includes ICD-10 codes for EVERY diagnosis (e.g., F11.20, F41.1, F33.1)
+  5. **CRITICAL - MEDICATIONS**: Verify medications include name, strength, frequency (e.g., "Buprenorphine/naloxone 8mg/2mg sublingual film, 1 film twice daily")
+  6. Check legal compliance (emergency counseling, controlled substance warnings)
+  7. **CRITICAL - ROS FORMAT**: Verify ROS starts with "ROS:" header and lists: Psychiatric:, Respiratory:, Cardiovascular:, Neurologic:, then "Other systems reviewed and negative"
+  8. **CRITICAL - MSE FORMAT**: Verify MSE starts with "MSE:" or "Mental Status Examination:" header and includes all elements (Speech, Mood, Affect, Thought Process, Thought Content, Perception, Insight, Judgment, Cognition, Suicidality/Homicidality)
+  9. Verify Dr. Albert Elumn is mentioned in Assessment
+  10. Check for "at the residential reentry center" phrasing (never "at a residential reentry center")
+  11. Verify emergency counseling (911/988) is present
+  12. Verify case manager coordination is mentioned
+  13. Check that Recommendations ends with primary care follow-up statement
+  14. Ensure no visual descriptions in MSE (no appearance, grooming, eye contact)
+  15. **CRITICAL - FOLLOW-UP**: Verify explicit follow-up timeframe stated ("Follow up in 1 week for MAT management" OR "Follow up in 2-4 weeks")
+  16. **CRITICAL - MAT/CONTROLLED SUBSTANCES** (if applicable): Verify ALL of these are explicitly stated:
+      - "Buprenorphine/naloxone is a controlled substance"
+      - "Diversion is illegal and must be used only as prescribed"
+      - "PDMP checked with no aberrant behavior"
 
   **BANNED PHRASES - Remove if found:**
   - "based on the provided information"
@@ -51,6 +110,20 @@ verification_prompt: |
   - "as mentioned" / "as noted"
   - "it appears" / "it seems"
   - "the patient reports that"
+  - "telehealth" / "telephone" / "appeared"
+  - Visual appearance terms (grooming, dress, eye contact, etc.)
+
+  **REQUIRED ELEMENTS:**
+  - Dr. Albert Elumn in Assessment
+  - ICD-10 codes in Plan section for EVERY diagnosis
+  - Complete medication format with strength and frequency
+  - Emergency counseling: 911 for medical emergencies, 988 for suicide/crisis
+  - Case manager coordination statement
+  - Recommendations closing: "Follow up with primary care for non-psychiatric medical conditions (e.g., HTN, hyperlipidemia)."
+  - ROS: Must start with "ROS:" header, list Psychiatric:, Respiratory:, Cardiovascular:, Neurologic:, end with "Other systems reviewed and negative"
+  - MSE: Must start with "MSE:" header, include all elements (Speech, Mood, Affect, Thought Process, Thought Content, Perception, Insight, Judgment, Cognition, Suicidality/Homicidality)
+  - Explicit follow-up timeframe (1 week for MAT, 2-4 weeks for psychiatric)
+  - For MAT/controlled substances: All three statements (controlled substance, diversion illegal, PDMP checked)
 
   If the note is compliant, return it unchanged with a header:
   ```
@@ -88,7 +161,7 @@ requirements:
 
     - id: "NO_AI_LANGUAGE"
       name: "No AI Language Markers"
-      description: "Must not contain AI language markers"
+      description: "Must not contain AI language markers or telehealth terms"
       banned_phrases:
         - "based on the provided information"
         - "the note indicates"
@@ -101,7 +174,10 @@ requirements:
         - "it appears"
         - "it seems"
         - "the patient reports that"
-      error_message: "Contains AI language markers"
+        - "telehealth"
+        - "telephone"
+        - "appeared"
+      error_message: "Contains AI language markers or banned telehealth terms"
 
     - id: "PROVIDER_VOICE"
       name: "Provider First-Person Voice"
@@ -154,35 +230,68 @@ requirements:
       error_message: "Medications may be missing dosage information"
 
     - id: "SUPERVISING_PHYSICIAN"
-      name: "Supervising Physician"
-      description: "Should mention supervising physician if applicable"
+      name: "Supervising Physician Dr. Albert Elumn"
+      description: "Must mention Dr. Albert Elumn in Assessment"
       required_patterns:
-        - "(?i)(Dr\\.|supervising physician)"
-      error_message: "May be missing supervising physician reference"
+        - "(?i)Dr\\.? Albert Elumn"
+      error_message: "Missing supervising physician Dr. Albert Elumn"
 
     - id: "FOLLOWUP_INTERVAL"
       name: "Follow-up Interval"
-      description: "Recommendations should include follow-up timeframe"
+      description: "Recommendations should include follow-up timeframe (weekly for MAT, 2-4 weeks for psychiatric)"
       required_patterns:
-        - "(?i)(week|weeks|month|follow.?up)"
+        - "(?i)(week|weeks|follow.?up)"
       error_message: "May be missing follow-up interval"
 
-  # LOW PRIORITY - Nice to have
+    - id: "PRIMARY_CARE_FOLLOWUP"
+      name: "Primary Care Follow-up Recommendation"
+      description: "Recommendations must end with primary care follow-up statement"
+      required_patterns:
+        - "(?i)follow.?up with primary care"
+      error_message: "Missing required primary care follow-up statement"
+
+    - id: "NO_VISUAL_MSE"
+      name: "No Visual Descriptions in MSE"
+      description: "MSE must not include visual observations"
+      banned_phrases:
+        - "appearance"
+        - "grooming"
+        - "eye contact"
+        - "dress"
+        - "hygiene"
+      error_message: "MSE contains visual descriptions (should be behavioral/cognitive only)"
+
+    - id: "CASE_MANAGER_COORD"
+      name: "Case Manager Coordination"
+      description: "Must document case manager coordination"
+      required_patterns:
+        - "(?i)case manager"
+      error_message: "Missing case manager coordination statement"
+
+    - id: "RRC_PHRASING"
+      name: "Residential Reentry Center Phrasing"
+      description: "Must use 'at the residential reentry center' (never 'at a')"
+      banned_phrases:
+        - "at a residential reentry center"
+      error_message: "Incorrect RRC phrasing (use 'at the residential reentry center')"
+
+  # LOW PRIORITY - Conditional requirements
   low:
     - id: "PDMP_CHECK"
-      name: "PDMP Check"
-      description: "Should document PDMP check for controlled substances"
+      name: "PDMP Check for Controlled Substances"
+      description: "Must document PDMP checked for controlled substances"
       condition_regex: "(?i)(controlled substance|buprenorphine|suboxone)"
       required_patterns:
         - "(?i)PDMP"
       error_message: "PDMP check not documented for controlled substance"
 
-    - id: "CASE_MANAGER_COORD"
-      name: "Case Manager Coordination"
-      description: "Should document case manager coordination"
+    - id: "VOUCHER_MAT"
+      name: "Voucher Requests for MAT"
+      description: "MAT notes should include voucher requests"
+      condition_regex: "(?i)(buprenorphine|suboxone|MAT)"
       required_patterns:
-        - "(?i)case manager"
-      error_message: "Case manager coordination not documented"
+        - "(?i)voucher"
+      error_message: "MAT note may be missing voucher request documentation"
 
 # Human Intervention Triggers
 # Conditions that automatically flag a note for human review

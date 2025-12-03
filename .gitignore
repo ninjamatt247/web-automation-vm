@@ -18,6 +18,8 @@ data/temp/*
 data/archive/*
 data/*.json
 data/*.txt
+data/*.csv
+data/all.csv
 !data/temp/.gitkeep
 !data/archive/.gitkeep
 
@@ -49,6 +51,7 @@ playwright-report/
 # Root-level test and utility scripts
 /*_test*.py
 /test_*.py
+/test*
 /fetch_*.py
 /browse_*.py
 /compare_*.py
@@ -74,8 +77,11 @@ playwright-report/
 !CONTRIBUTING.md
 !CHANGELOG.md
 
+# Node.js dependencies (anywhere in project)
+**/node_modules/
+node_modules/
+
 # Web app - build artifacts and dependencies
-web-app/*/node_modules/
 web-app/*/.next/
 web-app/*/dist/
 web-app/*/__pycache__/

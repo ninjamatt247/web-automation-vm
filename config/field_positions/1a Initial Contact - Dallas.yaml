@@ -1,0 +1,180 @@
+# Field positions for 1a Initial Contact - Dallas.pdf
+# Coordinates are in points from bottom-left (PDF standard)
+# Standard letter size: 612 x 792 points (8.5" x 11")
+
+template: "1a Initial Contact - Dallas.pdf"
+description: "Initial Contact Form - Dallas Location"
+
+pages:
+  0:
+    # Patient Demographics (typically top section)
+    patient_name:
+      x: 100
+      y: 720
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    date_of_birth:
+      x: 350
+      y: 720
+      font: "Helvetica"
+      size: 10
+
+    gender:
+      x: 480
+      y: 720
+      font: "Helvetica"
+      size: 10
+
+    # Contact Information
+    phone:
+      x: 100
+      y: 690
+      font: "Helvetica"
+      size: 10
+
+    email:
+      x: 250
+      y: 690
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    # Address
+    address_street:
+      x: 100
+      y: 660
+      font: "Helvetica"
+      size: 10
+      max_width: 300
+
+    address_city:
+      x: 100
+      y: 640
+      font: "Helvetica"
+      size: 10
+
+    address_state:
+      x: 250
+      y: 640
+      font: "Helvetica"
+      size: 10
+
+    address_zip:
+      x: 320
+      y: 640
+      font: "Helvetica"
+      size: 10
+
+    # Emergency Contact
+    emergency_contact_name:
+      x: 100
+      y: 600
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    emergency_contact_phone:
+      x: 350
+      y: 600
+      font: "Helvetica"
+      size: 10
+
+    # Insurance Information
+    insurance_provider:
+      x: 100
+      y: 560
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    insurance_id:
+      x: 350
+      y: 560
+      font: "Helvetica"
+      size: 10
+
+    # Visit Information
+    visit_date:
+      x: 100
+      y: 510
+      font: "Helvetica"
+      size: 10
+
+    visit_time:
+      x: 220
+      y: 510
+      font: "Helvetica"
+      size: 10
+
+    visit_type:
+      x: 320
+      y: 510
+      font: "Helvetica"
+      size: 10
+
+    # Provider Information
+    provider_name:
+      x: 100
+      y: 480
+      font: "Helvetica"
+      size: 10
+      max_width: 200
+
+    # Chief Complaint / Reason for Visit
+    chief_complaint:
+      x: 100
+      y: 440
+      font: "Helvetica"
+      size: 10
+      max_width: 450
+
+    # Clinical Notes
+    presenting_problem:
+      x: 100
+      y: 380
+      font: "Helvetica"
+      size: 9
+      max_width: 450
+
+    # Medical History
+    medical_history:
+      x: 100
+      y: 300
+      font: "Helvetica"
+      size: 9
+      max_width: 450
+
+    # Current Medications
+    current_medications:
+      x: 100
+      y: 220
+      font: "Helvetica"
+      size: 9
+      max_width: 450
+
+    # Signature Section (bottom)
+    patient_signature:
+      x: 100
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    signature_date:
+      x: 350
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    provider_signature:
+      x: 100
+      y: 90
+      font: "Helvetica"
+      size: 10
+
+    provider_date:
+      x: 350
+      y: 90
+      font: "Helvetica"
+      size: 10

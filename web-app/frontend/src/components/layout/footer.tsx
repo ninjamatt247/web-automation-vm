@@ -73,46 +73,10 @@ const Footer = () => {
 
   return (
     <footer className="section-padding relative overflow-hidden">
-      <div className="container text-center">
-        <p className="text-accent-foreground">
-          Trusted by 150+ teams in 120 companies
-        </p>
-
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-6 sm:justify-center lg:mt-10 lg:gap-16">
-          {TECH_ICONS.map((icon, index) => (
-            <div key={index} className="text-accent-foreground">
-              {icon.icon}
-            </div>
-          ))}
-        </div>
-
-        <Logo
-          className="mt-20 justify-center gap-3 text-3xl lg:mt-30"
-          iconClassName="w-10"
-        />
-
-        <h2 className="my-8 text-2xl lg:my-6 lg:text-5xl">
-          Install it. script it.{' '}
-          <span className="text-gradient">forget it. forever.</span>
-        </h2>
-
-        <div className="mx-auto flex max-w-sm justify-center gap-4.5">
-          <Button className="flex-1">Try it locally</Button>
-          <Button
-            variant="secondary"
-            className="border-input bg-accent flex-1 border"
-          >
-            View on GitHub
-          </Button>
-        </div>
-
-        <p className="mt-3 text-sm">2.4k stars · 500+ active installs</p>
-      </div>
-
       <div className="container mt-20 flex flex-col-reverse justify-between gap-8 text-xs lg:mt-30 lg:flex-row">
         <div className="flex items-center justify-between gap-2">
           <p className="">
-            © {new Date().getFullYear()} Plasma — Built for builders.
+            © 2025 Medical Notes Processor
           </p>{' '}
           <div className="flex items-center gap-7 lg:hidden">
             {SOCIAL_LINKS.map((link, index) => (

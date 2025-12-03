@@ -1,5 +1,6 @@
 import './globals.css';
 
+import { LicenseInfo } from '@mui/x-license';
 import { RootProvider } from 'fumadocs-ui/provider';
 import type { Metadata } from 'next';
 import { Azeret_Mono, Inter } from 'next/font/google';
@@ -8,7 +9,13 @@ import Footer from '@/components/layout/footer';
 import Navbar from '@/components/layout/navbar';
 import { StyleGlideProvider } from '@/components/styleglide-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import { CustomMuiThemeProvider } from '@/lib/mui-theme';
 import { cn } from '@/lib/utils';
+
+// Configure MUI X License
+LicenseInfo.setLicenseKey(
+  '2857681c03767ce00e16f5e3fef1d02dTz0xMTcwNzIsRT0xNzg1NzE1MTk5MDAwLFM9cHJlbWl1bSxMTT1zdWJzY3JpcHRpb24sUFY9aW5pdGlhbCxLVj0y'
+);
 
 const inter = Inter({
   variable: '--font-inter',
@@ -95,27 +102,29 @@ export default function RootLayout({
           defaultTheme="dark"
           disableTransitionOnChange
         >
-          <RootProvider
-            search={{
-              options: {
-                type: 'static',
-              },
-            }}
-          >
-            {/* Background Blur */}
-            <div className="bg-background/10 absolute inset-0 z-[-2] backdrop-blur-[85px] will-change-transform md:backdrop-blur-[170px]" />
-            {/* Noise Background */}
-            <div
-              className="absolute inset-0 z-[-1] size-full opacity-70 mix-blend-overlay dark:md:opacity-100"
-              style={{
-                background: `url(/images/noise.webp) lightgray 0% 0% / 83.69069695472717px 83.69069695472717px repeat`,
+          <CustomMuiThemeProvider>
+            <RootProvider
+              search={{
+                options: {
+                  type: 'static',
+                },
               }}
-            />
-            <StyleGlideProvider />
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </RootProvider>
+            >
+              {/* Background Blur */}
+              <div className="bg-background/10 absolute inset-0 z-[-2] backdrop-blur-[85px] will-change-transform md:backdrop-blur-[170px]" />
+              {/* Noise Background */}
+              <div
+                className="absolute inset-0 z-[-1] size-full opacity-70 mix-blend-overlay dark:md:opacity-100"
+                style={{
+                  background: `url(/images/noise.webp) lightgray 0% 0% / 83.69069695472717px 83.69069695472717px repeat`,
+                }}
+              />
+              <StyleGlideProvider />
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </RootProvider>
+          </CustomMuiThemeProvider>
         </ThemeProvider>
       </body>
     </html>

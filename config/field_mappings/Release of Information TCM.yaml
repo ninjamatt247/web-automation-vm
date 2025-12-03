@@ -1,0 +1,35 @@
+# Field mapping for Release of Information TCM.pdf
+# Maps database fields to PDF form fields
+
+template: "Release of Information TCM.pdf"
+description: "Release of Information for Transitional Care Management"
+
+# Note: This form has many "undefined" field names which means the PDF fields
+# weren't properly named. Best to fill directly with actual field data.
+
+fields:
+  "full name":
+    source: "patient.name"
+    required: true
+
+  "DOB":
+    source: "patient.date_of_birth"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Date":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Date_2":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: false
+
+  "Witness":
+    source: "staff.witness_name"
+    required: false
+
+  # The "undefined" fields should be filled by passing exact data
+  # with keys like "undefined", "undefined_2", etc.

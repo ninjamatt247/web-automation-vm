@@ -1,0 +1,153 @@
+# Field positions for Release of Information TCM.pdf
+# Coordinates are in points from bottom-left (PDF standard)
+
+template: "Release of Information TCM.pdf"
+description: "Release of Information for Transitional Care Management"
+
+pages:
+  0:
+    # Patient Information
+    patient_name:
+      x: 100
+      y: 720
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    date_of_birth:
+      x: 400
+      y: 720
+      font: "Helvetica"
+      size: 10
+
+    patient_ssn:
+      x: 100
+      y: 690
+      font: "Helvetica"
+      size: 10
+
+    patient_address:
+      x: 100
+      y: 660
+      font: "Helvetica"
+      size: 9
+      max_width: 300
+
+    # Release Information
+    release_from_organization:
+      x: 100
+      y: 620
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    release_from_contact:
+      x: 100
+      y: 600
+      font: "Helvetica"
+      size: 9
+      max_width: 300
+
+    release_to_organization:
+      x: 100
+      y: 560
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    release_to_contact:
+      x: 100
+      y: 540
+      font: "Helvetica"
+      size: 9
+      max_width: 300
+
+    # Information categories (typically checkboxes)
+    info_discharge_summary:
+      x: 120
+      y: 500
+      font: "Helvetica"
+      size: 9
+
+    info_medication_list:
+      x: 120
+      y: 480
+      font: "Helvetica"
+      size: 9
+
+    info_treatment_plan:
+      x: 120
+      y: 460
+      font: "Helvetica"
+      size: 9
+
+    info_lab_results:
+      x: 120
+      y: 440
+      font: "Helvetica"
+      size: 9
+
+    info_care_coordination:
+      x: 120
+      y: 420
+      font: "Helvetica"
+      size: 9
+
+    # Purpose and expiration
+    purpose_of_disclosure:
+      x: 100
+      y: 370
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    expiration_date:
+      x: 100
+      y: 330
+      font: "Helvetica"
+      size: 10
+
+    # Patient rights statement
+    patient_rights_acknowledgment:
+      x: 100
+      y: 280
+      font: "Helvetica"
+      size: 8
+      max_width: 400
+
+    # Signature Section
+    patient_signature:
+      x: 100
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    signature_date:
+      x: 350
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    guardian_signature:
+      x: 100
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    guardian_date:
+      x: 350
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    witness_signature:
+      x: 100
+      y: 90
+      font: "Helvetica"
+      size: 10
+
+    witness_date:
+      x: 350
+      y: 90
+      font: "Helvetica"
+      size: 10

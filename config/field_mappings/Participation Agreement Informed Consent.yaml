@@ -1,0 +1,48 @@
+# Field mapping for Participation Agreement Informed Consent.pdf
+# Maps database fields to PDF form fields
+
+template: "Participation Agreement Informed Consent.pdf"
+description: "Participation Agreement and Informed Consent Form"
+
+# Note: This form has many checkboxes and initials fields
+# Best to pass data directly with exact field names
+
+fields:
+  "Re ister Number":
+    source: "patient.registration_number"
+    required: true
+
+  "Date of Birth":
+    source: "patient.date_of_birth"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Client Primary Contact Number":
+    source: "patient.phone"
+    required: false
+
+  "Client Secondary Contact Number":
+    source: "patient.secondary_phone"
+    required: false
+
+  "Todays Date":
+    source: "current_date"
+    transform: "date:%m/%d/%Y"
+    required: true
+
+  "Contract Staff Witness Printed Name Lauren Herraiz":
+    source: "staff.witness_name"
+    required: false
+
+  # Service checkboxes - use /Yes or /Off
+  "Mental Health Counseling":
+    source: "service.mental_health"
+    required: false
+
+  "Substance Use Counseling":
+    source: "service.substance_use"
+    required: false
+
+  "Sex Offender Counseling":
+    source: "service.sex_offender"
+    required: false

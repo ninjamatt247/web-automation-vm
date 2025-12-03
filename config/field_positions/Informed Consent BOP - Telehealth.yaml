@@ -1,0 +1,91 @@
+# Field positions for Informed Consent BOP - Telehealth.pdf
+# Coordinates are in points from bottom-left (PDF standard)
+
+template: "Informed Consent BOP - Telehealth.pdf"
+description: "Informed Consent for Telehealth Services"
+
+pages:
+  0:
+    # Patient Information
+    patient_name:
+      x: 100
+      y: 720
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    date_of_birth:
+      x: 400
+      y: 720
+      font: "Helvetica"
+      size: 10
+
+    # Consent Statement Date
+    consent_date:
+      x: 100
+      y: 680
+      font: "Helvetica"
+      size: 10
+
+    # Provider Information
+    provider_name:
+      x: 100
+      y: 650
+      font: "Helvetica"
+      size: 10
+      max_width: 250
+
+    # Telehealth Platform
+    telehealth_platform:
+      x: 100
+      y: 620
+      font: "Helvetica"
+      size: 10
+
+    # Acknowledgment sections (these are typically checkboxes in the actual form)
+    # We'll place text markers near where checkboxes would be
+    acknowledgment_privacy:
+      x: 120
+      y: 580
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    acknowledgment_technology:
+      x: 120
+      y: 540
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    acknowledgment_limitations:
+      x: 120
+      y: 500
+      font: "Helvetica"
+      size: 9
+      max_width: 400
+
+    # Signature Section
+    patient_signature:
+      x: 100
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    signature_date:
+      x: 350
+      y: 150
+      font: "Helvetica"
+      size: 10
+
+    witness_signature:
+      x: 100
+      y: 120
+      font: "Helvetica"
+      size: 10
+
+    witness_date:
+      x: 350
+      y: 120
+      font: "Helvetica"
+      size: 10
