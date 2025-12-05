@@ -9,25 +9,25 @@ services:
     container_name: medical-notes-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     env_file:
       - config/.env
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
-      - ./config:/app/config
-      - ./web-app/backend:/app/backend
-      - ./src:/app/src
+      - ./config:/app/config:ro
     environment:
-      - TZ=America/New_York
+      - TZ=${TZ:-America/New_York}
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///app/data/medical_notes.db}
     networks:
       - app-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
-      timeout: 3s
+      timeout: 5s
       retries: 3
+      start_period: 10s
 
   # Frontend Next.js Service
   frontend:
@@ -37,26 +37,28 @@ services:
     container_name: medical-notes-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - app-network
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
-      timeout: 3s
+      timeout: 5s
       retries: 3
+      start_period: 15s
 
-  # Original Automation Service (cron jobs, scheduled tasks)
+  # Automation Service (cron jobs, scheduled tasks)
   automation:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: web-automation
+    container_name: medical-notes-automation
     restart: unless-stopped
     env_file:
       - config/.env
@@ -65,10 +67,23 @@ services:
       - ./data:/app/data
       - ./config:/app/config:ro
     environment:
-      - TZ=America/New_York
+      - TZ=${TZ:-America/New_York}
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///app/data/medical_notes.db}
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - app-network
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  logs:
+    driver: local
+  data:
+    driver: local
+  config:
+    driver: local

@@ -316,7 +316,7 @@ class FreedExtractor:
         self.records = extracted_records
         return extracted_records
 
-    def save_records(self, output_dir: str = "/app/data/temp") -> List[str]:
+    def save_records(self, output_dir: str = "data/temp") -> List[str]:
         """Save extracted records as individual JSON files.
 
         Args:

@@ -1,0 +1,29 @@
+version: '3.8'
+
+# Backend-only deployment
+# Use: docker-compose -f docker-compose.backend.yml up --build
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: web-app/backend/Dockerfile
+    container_name: medical-notes-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - config/.env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    environment:
+      - TZ=${TZ:-America/New_York}
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

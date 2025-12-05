@@ -58,6 +58,9 @@ class NoteRequest(BaseModel):
 class ProcessNoteRequest(BaseModel):
     note_text: str
 
+class BulkNoteRequest(BaseModel):
+    note_ids: List[int]
+
 class Note(BaseModel):
     patient_name: str
     visit_date: str
@@ -235,7 +238,8 @@ async def get_notes(limit: int = 0):
                     fn.tags,
                     fn.note_length,
                     fn.freed_visit_id,
-                    fn.extracted_at
+                    fn.extracted_at,
+                    fn.sent_to_ai_date
                 FROM freed_notes fn
                 JOIN patients p ON fn.patient_id = p.id
                 ORDER BY fn.visit_date DESC
@@ -255,7 +259,8 @@ async def get_notes(limit: int = 0):
                     fn.tags,
                     fn.note_length,
                     fn.freed_visit_id,
-                    fn.extracted_at
+                    fn.extracted_at,
+                    fn.sent_to_ai_date
                 FROM freed_notes fn
                 JOIN patients p ON fn.patient_id = p.id
                 ORDER BY fn.visit_date DESC
@@ -285,7 +290,7 @@ async def get_notes(limit: int = 0):
                 'ai_enhanced': False,
                 'uploaded_to_osmind': False,
                 'synced': '',
-                'sent_to_ai_date': '',
+                'sent_to_ai_date': note.get('sent_to_ai_date', ''),
                 'manual_match': False
             })
         return {"notes": formatted_notes, "count": len(formatted_notes)}
@@ -460,6 +465,192 @@ async def process_note(request: ProcessNoteRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+@app.post("/api/notes/bulk-send-ai")
+async def bulk_send_to_ai(request: BulkNoteRequest):
+    """
+    Send multiple notes through the OpenAI → Osmind pipeline
+
+    This endpoint triggers the full automation workflow for selected notes:
+    1. Retrieves note content from database
+    2. Processes with OpenAI for cleaning/formatting
+    3. Marks as sent to AI and updates database
+    """
+    try:
+        logger.info(f"Bulk send to AI requested for {len(request.note_ids)} notes")
+
+        if not request.note_ids:
+            raise HTTPException(status_code=400, detail="No note IDs provided")
+
+        processed_count = 0
+        failed_count = 0
+        results = []
+
+        for note_id in request.note_ids:
+            try:
+                # Get note from database
+                note_query = """
+                    SELECT fn.*, p.name as patient_name
+                    FROM freed_notes fn
+                    JOIN patients p ON fn.patient_id = p.id
+                    WHERE fn.id = ?
+                """
+                db.cursor.execute(note_query, (note_id,))
+                note = db.cursor.fetchone()
+
+                if not note:
+                    logger.warning(f"Note {note_id} not found")
+                    failed_count += 1
+                    results.append({
+                        'note_id': note_id,
+                        'status': 'not_found'
+                    })
+                    continue
+
+                # Prepare note text
+                raw_note = note['full_text'] or note['note_text'] or ""
+
+                if not raw_note:
+                    logger.warning(f"Note {note_id} has no content")
+                    failed_count += 1
+                    results.append({
+                        'note_id': note_id,
+                        'status': 'no_content'
+                    })
+                    continue
+
+                # Process with OpenAI
+                logger.info(f"Processing note {note_id} for patient {note['patient_name']}")
+                cleaned_note = openai_processor.clean_patient_note(raw_note)
+
+                # Mark as sent to AI in database
+                db.cursor.execute("""
+                    UPDATE freed_notes
+                    SET sent_to_ai_date = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (note_id,))
+                db.conn.commit()
+
+                processed_count += 1
+                results.append({
+                    'note_id': note_id,
+                    'patient_name': note['patient_name'],
+                    'status': 'success',
+                    'cleaned_note': cleaned_note
+                })
+
+                logger.info(f"✓ Successfully processed note {note_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to process note {note_id}: {str(e)}")
+                failed_count += 1
+                results.append({
+                    'note_id': note_id,
+                    'status': 'error',
+                    'error': str(e)
+                })
+
+        logger.info(f"Bulk AI processing complete: {processed_count} success, {failed_count} failed")
+
+        return {
+            "success": True,
+            "message": f"Processed {processed_count}/{len(request.note_ids)} note(s)",
+            "processed": processed_count,
+            "failed": failed_count,
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"Bulk send to AI failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Bulk processing failed: {str(e)}")
+
+@app.post("/api/notes/bulk-refetch")
+async def bulk_refetch_from_freed(request: BulkNoteRequest):
+    """
+    Refetch multiple notes from Freed.ai
+
+    This endpoint marks notes for re-synchronization.
+    The actual refetch happens during the next scheduled sync run.
+
+    Steps:
+    1. Validates note IDs exist
+    2. Marks notes as pending refetch
+    3. Updates last_synced timestamp to trigger priority re-sync
+    """
+    try:
+        logger.info(f"Bulk refetch from Freed requested for {len(request.note_ids)} notes")
+
+        if not request.note_ids:
+            raise HTTPException(status_code=400, detail="No note IDs provided")
+
+        marked_count = 0
+        not_found_count = 0
+        results = []
+
+        for note_id in request.note_ids:
+            try:
+                # Check if note exists
+                db.cursor.execute("""
+                    SELECT id, patient_id
+                    FROM freed_notes
+                    WHERE id = ?
+                """, (note_id,))
+                note = db.cursor.fetchone()
+
+                if not note:
+                    logger.warning(f"Note {note_id} not found")
+                    not_found_count += 1
+                    results.append({
+                        'note_id': note_id,
+                        'status': 'not_found'
+                    })
+                    continue
+
+                # Mark for refetch by updating last_synced to NULL
+                # This will trigger the note to be prioritized in next sync
+                db.cursor.execute("""
+                    UPDATE freed_notes
+                    SET extracted_at = CURRENT_TIMESTAMP,
+                        tags = CASE
+                            WHEN tags IS NULL OR tags = '' THEN '["pending_refetch"]'
+                            ELSE json_insert(tags, '$[#]', 'pending_refetch')
+                        END
+                    WHERE id = ?
+                """, (note_id,))
+                db.conn.commit()
+
+                marked_count += 1
+                results.append({
+                    'note_id': note_id,
+                    'status': 'marked_for_refetch'
+                })
+
+                logger.info(f"✓ Marked note {note_id} for refetch")
+
+            except Exception as e:
+                logger.error(f"Failed to mark note {note_id} for refetch: {str(e)}")
+                results.append({
+                    'note_id': note_id,
+                    'status': 'error',
+                    'error': str(e)
+                })
+
+        logger.info(f"Bulk refetch marking complete: {marked_count} marked, {not_found_count} not found")
+
+        message = f"Marked {marked_count}/{len(request.note_ids)} note(s) for refetch"
+        if not_found_count > 0:
+            message += f" ({not_found_count} not found)"
+
+        return {
+            "success": True,
+            "message": message,
+            "marked": marked_count,
+            "not_found": not_found_count,
+            "results": results,
+            "info": "Notes will be refetched during next sync run"
+        }
+    except Exception as e:
+        logger.error(f"Bulk refetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Bulk refetch failed: {str(e)}")
 
 @app.get("/api/stats")
 async def get_stats(

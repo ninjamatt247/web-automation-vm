@@ -62,7 +62,7 @@ class BaseAuth(ABC):
         """
         if self.page and self.config.screenshot_on_error:
             try:
-                screenshot_path = f"/app/logs/{name}_{self._get_timestamp()}.png"
+                screenshot_path = f"logs/{name}_{self._get_timestamp()}.png"
                 self.page.screenshot(path=screenshot_path)
                 logger.info(f"Screenshot saved: {screenshot_path}")
             except Exception as e:

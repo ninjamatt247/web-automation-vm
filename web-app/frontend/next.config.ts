@@ -5,6 +5,7 @@ const withMDX = createMDX();
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
@@ -17,7 +18,9 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*', // Proxy to Python Backend
+        destination: process.env.NEXT_PUBLIC_API_URL
+          ? `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`
+          : 'http://localhost:8000/api/:path*', // Proxy to Python Backend
       },
     ];
   },

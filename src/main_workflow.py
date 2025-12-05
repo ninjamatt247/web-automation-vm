@@ -145,7 +145,7 @@ def main():
 
             # Save processed notes
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            processed_dir = Path("/app/data/temp/processed")
+            processed_dir = Path("data/temp/processed")
             processed_dir.mkdir(parents=True, exist_ok=True)
 
             for i, note in enumerate(successful_notes):
@@ -210,7 +210,7 @@ def main():
 
             # Archive processed files
             if config.download_individual_files:
-                archive_dir = Path("/app/data/archive")
+                archive_dir = Path("data/archive")
                 archive_dir.mkdir(parents=True, exist_ok=True)
 
                 for file_path in saved_files:
